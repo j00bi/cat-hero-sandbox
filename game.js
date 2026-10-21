@@ -7,6 +7,19 @@ const W = 960, H = 540, TILE = 32;
 const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL = 980;
 const COYOTE = 0.09, JUMP_BUF = 0.12;
 
+/* meadow palette taken from the reference mockup */
+const C = {
+  skyTop: "#5BA8E5", skyMid: "#8CC8F0", skyLow: "#C6E6FA",
+  mountFar: "#2E5A8A", mountMid: "#4A7A9E", mountHi: "#7FA8C8",
+  forest: "#2E7D32", forestDark: "#1F5A24", forestHi: "#4CAF50",
+  grass: "#4CAF50", grassHi: "#81C784", grassDark: "#2E7D32",
+  dirt: "#5D4037", dirtDark: "#3E2723", dirtHi: "#795548",
+  water: "#3B7EC4", waterDeep: "#2A5E96", waterHi: "#8CC8F0",
+  stone: "#A1887F", stoneDark: "#7E675F", roof: "#D32F2F", roofDark: "#9E1F1F",
+  ink: "#212121", paper: "#FFFFFF", gold: "#FFEB3B", red: "#E53935",
+  panel: "rgba(16,24,20,0.78)",
+};
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
@@ -125,8 +138,8 @@ const sfx = {
 const MAP = {
   ArrowLeft: "left", KeyA: "left",
   ArrowRight: "right", KeyD: "right",
-  Space: "jump", ArrowUp: "jump", KeyW: "jump",
-  KeyJ: "bat", KeyX: "bat", KeyZ: "bat",
+  Space: "jump", ArrowUp: "jump", KeyW: "jump", KeyZ: "jump",
+  KeyJ: "bat", KeyX: "bat",
 };
 addEventListener("keydown", (e) => {
   const k = MAP[e.code];
@@ -155,13 +168,32 @@ addEventListener("keyup", (e) => {
 
 document.querySelectorAll("#touch button").forEach((b) => {
   const k = b.dataset.k;
-  const on = (e) => { e.preventDefault(); keys[k] = true; if (k === "jump") queued.jump = true; if (k === "bat") queued.bat = true; if (k === "pending") { } };
-  const off = (e) => { e.preventDefault(); keys[k] = false; };
+  const on = (e) => { e.preventDefault(); e.stopPropagation(); keys[k] = true; if (k === "jump") queued.jump = true; if (k === "bat") queued.bat = true; };
+  const off = (e) => { e.preventDefault(); e.stopPropagation(); keys[k] = false; };
   b.addEventListener("pointerdown", on);
   b.addEventListener("pointerup", off);
   b.addEventListener("pointercancel", off);
   b.addEventListener("pointerleave", off);
 });
+
+/* Tap/click anywhere on the canvas to advance menus — phones have no Enter key. */
+canvas.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  const a = ac();
+  if (a && a.state === "suspended") a.resume();
+  const r = canvas.getBoundingClientRect();
+  const x = ((e.clientX - r.left) / r.width) * W;
+  if (state.mode === "select") {
+    const want = x < W / 2 ? 0 : 1;
+    if (want !== state.setIndex) {
+      state.setIndex = want;
+      beep(660, 0.05, "square", 0.06);
+      return;
+    }
+  }
+  queued.confirm = true;
+});
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 /* ---------------------------------------------------------------- levels */
 function rect(x, y, w, h) { return { x, y, w, h }; }
@@ -179,7 +211,7 @@ function line(x, y, n, dx = 40) {
 
 const LEVELS = [
   {
-    name: "THE LIVING ROOM",
+    world: "1-1", name: "MEADOW FIELDS",
     width: 2600,
     spawn: { x: 80, y: 380 },
     solids: [
@@ -200,9 +232,15 @@ const LEVELS = [
       { x: 2020, min: 1800, max: 2400 },
     ],
     goal: { x: 2470, y: 470 },
+    decor: [
+      { t: "sign", x: 132 }, { t: "tree", x: 250 }, { t: "bush", x: 360 },
+      { t: "tree", x: 700 }, { t: "bush", x: 840 }, { t: "tree", x: 1150 },
+      { t: "bush", x: 1420 }, { t: "tree", x: 1900 }, { t: "bush", x: 2100 },
+      { t: "tree", x: 2330, s: 0.85 },
+    ],
   },
   {
-    name: "THE SHELF",
+    world: "1-2", name: "THE OLD ORCHARD",
     width: 3100,
     spawn: { x: 70, y: 360 },
     solids: [
@@ -228,9 +266,15 @@ const LEVELS = [
       { x: 2750, min: 2160, max: 3080 },
     ],
     goal: { x: 2980, y: 470 },
+    decor: [
+      { t: "sign", x: 118 }, { t: "tree", x: 230 }, { t: "bush", x: 360 },
+      { t: "tree", x: 560 }, { t: "bush", x: 900 }, { t: "tree", x: 1050 },
+      { t: "tree", x: 1600 }, { t: "bush", x: 1720 }, { t: "tree", x: 1900 },
+      { t: "bush", x: 2020 }, { t: "tree", x: 2600 }, { t: "bush", x: 2800 },
+    ],
   },
   {
-    name: "THE GARDEN",
+    world: "1-3", name: "SUNSET RIDGE",
     width: 3400,
     spawn: { x: 70, y: 380 },
     solids: [
@@ -258,6 +302,13 @@ const LEVELS = [
       { x: 3050, min: 2520, max: 3380 },
     ],
     goal: { x: 3280, y: 470 },
+    decor: [
+      { t: "sign", x: 116 }, { t: "tree", x: 200, s: 1.1 }, { t: "bush", x: 330 },
+      { t: "tree", x: 450 }, { t: "bush", x: 800 }, { t: "tree", x: 820, s: 0.9 },
+      { t: "tree", x: 1300 }, { t: "bush", x: 1400 }, { t: "tree", x: 1750 },
+      { t: "bush", x: 1900 }, { t: "tree", x: 2250 }, { t: "bush", x: 2320 },
+      { t: "tree", x: 2820, s: 0.95 }, { t: "bush", x: 3100 },
+    ],
   },
 ];
 
@@ -485,7 +536,7 @@ function update(dt) {
   if (p.x > state.checkpoint + 200) state.checkpoint = p.x;
 
   // goal
-  if (world.goal && overlaps(rect(p.x, p.y, p.w, p.h), rect(world.goal.x - 40, world.goal.y - 70, 90, 70))) {
+  if (world.goal && overlaps(rect(p.x, p.y, p.w, p.h), rect(world.goal.x - 66, world.goal.y - 92, 132, 92))) {
     state.mode = "clear"; sfx.win(); state.shake = 6;
     burst(world.goal.x, world.goal.y - 40, 30, "#f2c14e");
   }
@@ -515,39 +566,160 @@ function updateParticles(dt) {
 }
 
 /* ------------------------------------------------------------------ draw */
-function drawSky() {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, "#f7efd9");
-  g.addColorStop(0.6, "#f0e6c8");
-  g.addColorStop(1, "#e6d9b6");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+function cloud(x, y, s) {
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(x, y + 10 * s, 52 * s, 12 * s);
+  ctx.fillRect(x + 8 * s, y + 3 * s, 34 * s, 9 * s);
+  ctx.fillRect(x + 18 * s, y - 4 * s, 18 * s, 8 * s);
+  ctx.fillStyle = "#DCEFFB";
+  ctx.fillRect(x, y + 22 * s, 52 * s, 4 * s);
+}
 
-  // sun
-  ctx.fillStyle = "#f6dc9c";
-  ctx.beginPath(); ctx.arc(W - 130, 110, 54, 0, 7); ctx.fill();
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, 470);
+  g.addColorStop(0, C.skyTop);
+  g.addColorStop(0.55, C.skyMid);
+  g.addColorStop(1, C.skyLow);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, 470);
 
   const cam = world.cam || 0;
-  // far hills
-  ctx.fillStyle = "#e3d3ad";
-  for (let i = 0; i < 8; i++) {
-    const x = ((i * 380 - cam * 0.18) % (8 * 380) + 8 * 380) % (8 * 380) - 300;
-    const h = 150 + (i % 3) * 40;
-    ctx.beginPath(); ctx.ellipse(x + 190, 520, 260, h, 0, Math.PI, 0); ctx.fill();
+
+  ctx.fillStyle = "rgba(255,250,220,0.9)";
+  ctx.beginPath(); ctx.arc(W - 136, 96, 42, 0, 7); ctx.fill();
+
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 380 - cam * 0.08) % 2280 + 2280) % 2280 - 140;
+    cloud(x, 54 + (i % 3) * 46, 1 + (i % 2) * 0.3);
   }
-  // near hills
-  ctx.fillStyle = "#d8c49a";
-  for (let i = 0; i < 10; i++) {
-    const x = ((i * 300 - cam * 0.35) % 3000 + 3000) % 3000 - 200;
-    const h = 90 + (i % 4) * 22;
-    ctx.beginPath(); ctx.ellipse(x + 150, 520, 200, h, 0, Math.PI, 0); ctx.fill();
+
+  // far mountain range
+  const off = ((-cam * 0.14) % 420 + 420) % 420;
+  for (let i = 0; i < 6; i++) {
+    const bx = i * 420 + off - 420;
+    ctx.fillStyle = C.mountMid;
+    ctx.beginPath();
+    ctx.moveTo(bx - 40, 470); ctx.lineTo(bx + 170, 236); ctx.lineTo(bx + 380, 470);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.mountHi;
+    ctx.beginPath();
+    ctx.moveTo(bx + 170, 236); ctx.lineTo(bx + 250, 350); ctx.lineTo(bx + 170, 380);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = C.mountFar;
+    ctx.beginPath();
+    ctx.moveTo(bx + 170, 380); ctx.lineTo(bx + 250, 350); ctx.lineTo(bx + 380, 470);
+    ctx.lineTo(bx + 170, 470); ctx.closePath(); ctx.fill();
   }
-  // clouds
-  ctx.fillStyle = "#fbf5e4";
+
+  // castle on the far ridge
+  const cx = ((520 - cam * 0.14) % 2600 + 2600) % 2600 - 200;
+  drawCastle(cx, 470);
+
+  // forest ridge
+  const off2 = ((-cam * 0.3) % 300 + 300) % 300;
   for (let i = 0; i < 7; i++) {
-    const x = ((i * 340 - cam * 0.12) % 2380 + 2380) % 2380 - 120;
-    const y = 70 + (i % 3) * 46;
-    ctx.fillRect(x, y, 74, 16); ctx.fillRect(x + 14, y - 10, 46, 12);
-    ctx.fillRect(x + 26, y - 18, 24, 10);
+    const bx = i * 300 + off2 - 300;
+    ctx.fillStyle = C.forestDark;
+    ctx.beginPath(); ctx.ellipse(bx + 150, 486, 210, 92, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = C.forest;
+    ctx.beginPath(); ctx.ellipse(bx + 150, 492, 190, 78, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = C.forestHi;
+    for (let k = 0; k < 5; k++) {
+      const tx = bx + 40 + k * 52 + ((i * 17 + k * 29) % 18);
+      const ty = 470 - ((i * 7 + k * 13) % 26);
+      ctx.fillRect(tx, ty, 7, 7); ctx.fillRect(tx + 3, ty - 6, 5, 8);
+    }
+  }
+}
+
+function drawCastle(x, baseY) {
+  const s = 1;
+  ctx.fillStyle = C.mountFar;
+  ctx.fillRect(x, baseY - 58 * s, 20 * s, 58 * s);
+  ctx.fillRect(x + 44, baseY - 74 * s, 22 * s, 74 * s);
+  ctx.fillRect(x + 90, baseY - 50 * s, 18 * s, 50 * s);
+  ctx.fillStyle = C.roofDark;
+  ctx.beginPath(); ctx.moveTo(x - 4, baseY - 58 * s); ctx.lineTo(x + 10 * s, baseY - 84 * s); ctx.lineTo(x + 24 * s, baseY - 58 * s); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + 40, baseY - 74 * s); ctx.lineTo(x + 55 * s, baseY - 104 * s); ctx.lineTo(x + 70 * s, baseY - 74 * s); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x + 86, baseY - 50 * s); ctx.lineTo(x + 99 * s, baseY - 70 * s); ctx.lineTo(x + 112 * s, baseY - 50 * s); ctx.fill();
+}
+
+function drawWater() {
+  const top = 470;
+  ctx.fillStyle = C.water;
+  ctx.fillRect(0, top, W, H - top);
+  ctx.fillStyle = C.waterDeep;
+  ctx.fillRect(0, top + 30, W, H - top - 30);
+
+  const cam = world.cam;
+  ctx.fillStyle = C.waterHi;
+  for (let i = 0; i < 13; i++) {
+    const x = ((i * 140 - cam * 0.55) % 1820 + 1820) % 1820 - 110;
+    const y = top + 9 + ((i * 37) % 34);
+    ctx.fillRect(Math.round(x), Math.round(y), 30 + (i % 3) * 12, 3);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.30)";
+  for (let i = 0; i < 8; i++) {
+    const x = ((i * 220 - cam * 0.32) % 1760 + 1760) % 1760 - 90;
+    ctx.fillRect(Math.round(x), top + 26 + ((i * 53) % 30), 16, 2);
+  }
+  // shoreline
+  ctx.fillStyle = "#D9C9A3";
+  for (let i = 0; i < 20; i++) {
+    const x = ((i * 120 - cam * 0.7) % 2400 + 2400) % 2400 - 100;
+    ctx.fillRect(Math.round(x), top - 2, 26, 3);
+  }
+}
+
+function drawTree(x, groundY, s = 1) {
+  const h = 96 * s;
+  ctx.fillStyle = "#6D4C41";
+  ctx.fillRect(x - 7 * s, groundY - h * 0.52, 14 * s, h * 0.52);
+  ctx.fillStyle = "#4E342E";
+  ctx.fillRect(x + 2 * s, groundY - h * 0.52, 4 * s, h * 0.52);
+  const cy = groundY - h * 0.72;
+  ctx.fillStyle = C.forestDark;
+  ctx.beginPath(); ctx.ellipse(x, cy + 8 * s, 44 * s, 34 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = C.forest;
+  ctx.beginPath(); ctx.ellipse(x - 6 * s, cy, 40 * s, 30 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = C.forestHi;
+  ctx.beginPath(); ctx.ellipse(x - 14 * s, cy - 10 * s, 20 * s, 15 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = C.forestHi;
+  ctx.fillRect(x - 24 * s, cy - 2 * s, 6 * s, 6 * s);
+  ctx.fillRect(x + 10 * s, cy + 6 * s, 5 * s, 5 * s);
+}
+
+function drawBush(x, groundY) {
+  ctx.fillStyle = C.forestDark;
+  ctx.beginPath(); ctx.ellipse(x, groundY - 10, 30, 20, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = C.forest;
+  ctx.beginPath(); ctx.ellipse(x - 3, groundY - 12, 27, 17, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = C.forestHi;
+  ctx.fillRect(x - 12, groundY - 24, 5, 5);
+}
+
+function drawSign(x, groundY) {
+  ctx.fillStyle = "#6D4C41";
+  ctx.fillRect(x - 3, groundY - 46, 7, 46);
+  ctx.fillStyle = "#8D6E63";
+  ctx.fillRect(x - 30, groundY - 66, 64, 26);
+  ctx.fillStyle = "#5D4037";
+  ctx.fillRect(x - 30, groundY - 66, 64, 3);
+  text("GO!", x + 2, groundY - 60, 2, "#FFEB3B", "center");
+  ctx.fillStyle = "#FFEB3B";
+  ctx.fillRect(x + 20, groundY - 54, 8, 3);
+}
+
+function drawDecor() {
+  const L = world.level;
+  if (!L || !L.decor) return;
+  const cam = world.cam;
+  for (const d of L.decor) {
+    const x = Math.round(d.x - cam);
+    if (x < -140 || x > W + 140) continue;
+    if (d.t === "tree") drawTree(x, d.y || 470, d.s || 1);
+    else if (d.t === "bush") drawBush(x, d.y || 470);
+    else if (d.t === "sign") drawSign(x, d.y || 470);
   }
 }
 
@@ -557,110 +729,185 @@ function drawSolids() {
     if (s.x + s.w < cam - 40 || s.x > cam + W + 40) continue;
     const x = Math.round(s.x - cam), y = Math.round(s.y);
     const big = s.h > 40;
-    ctx.fillStyle = big ? "#5c3a21" : "#7a4f2d";
+
+    // dirt body
+    ctx.fillStyle = C.dirt;
     ctx.fillRect(x, y, s.w, s.h);
-    // top edge
-    ctx.fillStyle = big ? "#7a4f2d" : "#95643c";
-    ctx.fillRect(x, y, s.w, 6);
-    ctx.fillStyle = big ? "#8a5c34" : "#b07a4a";
-    ctx.fillRect(x, y, s.w, 2);
-    // plank texture
-    ctx.fillStyle = "rgba(0,0,0,0.16)";
-    for (let px = 0; px < s.w; px += 32) {
-      ctx.fillRect(x + px, y + 8, 2, s.h - 8);
-      const off = ((px * 7 + s.y) % 3) * 6;
-      ctx.fillRect(x + px + 6, y + 14 + off, 12, 2);
-    }
-    // grass tufts on wide ground
-    if (big) {
-      ctx.fillStyle = "#8fae62";
-      for (let px = 4; px < s.w - 4; px += 46) {
-        const hh = 4 + ((px * 13 + s.x) % 5);
-        ctx.fillRect(x + px, y - hh, 3, hh);
-        ctx.fillRect(x + px + 7, y - hh + 2, 3, hh - 2);
+
+    // chunky dirt speckle
+    ctx.fillStyle = C.dirtDark;
+    for (let px = 8; px < s.w - 8; px += 24) {
+      for (let py = 16; py < s.h - 6; py += 26) {
+        const n = (px * 7 + py * 13 + Math.round(s.x)) % 5;
+        if (n < 2) ctx.fillRect(x + px, y + py, 9, 6);
+        else if (n === 2) ctx.fillRect(x + px + 7, y + py + 5, 5, 4);
       }
     }
+    ctx.fillStyle = C.dirtHi;
+    for (let px = 16; px < s.w - 10; px += 36) {
+      ctx.fillRect(x + px, y + 22 + ((px * 3) % 16), 7, 4);
+    }
+
+    // grass cap
+    const cap = big ? 14 : 10;
+    ctx.fillStyle = C.grassDark;
+    ctx.fillRect(x, y, s.w, cap);
+    ctx.fillStyle = C.grass;
+    ctx.fillRect(x, y, s.w, cap - 4);
+    ctx.fillStyle = C.grassHi;
+    ctx.fillRect(x, y, s.w, 3);
+
+    // scalloped lip
+    ctx.fillStyle = C.grassDark;
+    for (let px = 0; px < s.w; px += 11) {
+      const d = 3 + ((px * 7 + Math.round(s.x)) % 3);
+      ctx.fillRect(x + px, y + cap - 2, 7, d);
+    }
+
+    // bottom shade
+    ctx.fillStyle = C.dirtDark;
+    ctx.fillRect(x, y + s.h - 4, s.w, 4);
   }
 }
 
 function drawCoin(c) {
   const bob = Math.sin(c.t * 4) * 3;
-  const x = Math.round(c.x - world.cam), y = Math.round(c.y + bob);
-  // fish coin: body + tail + eye
-  ctx.fillStyle = "#c99a2e";
-  ctx.fillRect(x - 9, y - 6, 18, 12);
-  ctx.fillRect(x - 11, y - 3, 3, 6);
-  ctx.fillStyle = "#f2c14e";
-  ctx.fillRect(x - 8, y - 5, 15, 10);
-  ctx.fillRect(x - 10, y - 2, 2, 4);
-  ctx.fillStyle = "#fff6d8";
-  ctx.fillRect(x + 2, y - 3, 3, 3);
-  ctx.fillStyle = "#5c3a21";
-  ctx.fillRect(x + 3, y - 2, 2, 2);
-  ctx.fillStyle = "#c99a2e";
-  ctx.fillRect(x - 10, y - 6, 3, 3);
-  ctx.fillRect(x - 10, y + 3, 3, 3);
+  const x = Math.round(c.x - world.cam);
+  const y = Math.round(c.y + bob);
+  // little fish: body, tail, fin, eye
+  ctx.fillStyle = "#B71C1C";
+  ctx.fillRect(x - 10, y - 5, 18, 10);
+  ctx.fillRect(x - 15, y - 8, 6, 7);
+  ctx.fillRect(x - 15, y + 1, 6, 7);
+  ctx.fillStyle = C.red;
+  ctx.fillRect(x - 9, y - 6, 17, 9);
+  ctx.fillStyle = "#FF8A80";
+  ctx.fillRect(x - 7, y - 4, 12, 3);
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(x + 1, y - 4, 3, 3);
+  ctx.fillStyle = C.ink;
+  ctx.fillRect(x + 2, y - 3, 2, 2);
+  ctx.fillStyle = "#B71C1C";
+  ctx.fillRect(x - 6, y + 3, 8, 2);
+  // sparkle
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.fillRect(x + 9, y - 8, 2, 4);
+  ctx.fillRect(x + 8, y - 7, 4, 2);
 }
 
 function drawEnemy(e) {
   const x = Math.round(e.x - world.cam), y = Math.round(e.y);
   if (!e.alive) {
     if (e.squash > 0) {
-      ctx.fillStyle = "#4a4038";
-      ctx.fillRect(x + 2, y + e.h - 8, e.w - 4, 8);
-      ctx.fillStyle = "#c2452f";
-      ctx.fillRect(x + e.w / 2 - 4, y + e.h - 6, 8, 2);
+      ctx.fillStyle = "#7A4B3A";
+      ctx.fillRect(x + 4, y + e.h - 8, e.w - 8, 8);
+      ctx.fillStyle = C.gold;
+      ctx.fillRect(x + 8, y + e.h - 5, 6, 3);
     }
     return;
   }
-  const wob = Math.sin(e.t * 9) * 1.5;
-  // body (round robot vacuum)
-  ctx.fillStyle = "#3a332c";
-  ctx.fillRect(x + 2, y + 6, e.w - 4, e.h - 8);
-  ctx.fillRect(x + 6, y + 2, e.w - 12, 4);
-  ctx.fillStyle = "#57504a";
-  ctx.fillRect(x + 4, y + 8, e.w - 8, 6);
+  const wob = Math.sin(e.t * 8) * 1.5;
+  // bird body
+  ctx.fillStyle = "#8E2A20";
+  ctx.beginPath(); ctx.ellipse(x + e.w / 2, y + e.h * 0.55, 17, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#C0392B";
+  ctx.beginPath(); ctx.ellipse(x + e.w / 2, y + e.h * 0.5, 15, 11, 0, 0, 7); ctx.fill();
+  // belly
+  ctx.fillStyle = "#F5D6A0";
+  ctx.beginPath(); ctx.ellipse(x + e.w / 2 + 2, y + e.h * 0.66, 9, 6, 0, 0, 7); ctx.fill();
+  // head
+  ctx.fillStyle = "#C0392B";
+  ctx.beginPath(); ctx.arc(x + e.w / 2 + 8, y + e.h * 0.34 + wob, 8, 0, 7); ctx.fill();
+  // beak
+  ctx.fillStyle = C.gold;
+  ctx.fillRect(x + e.w / 2 + 15, y + e.h * 0.33 + wob, 7, 4);
+  ctx.fillStyle = "#E6A700";
+  ctx.fillRect(x + e.w / 2 + 15, y + e.h * 0.38 + wob, 6, 2);
   // eye
-  ctx.fillStyle = "#c2452f";
-  ctx.fillRect(x + e.w / 2 - 6 + wob, y + 10, 12, 4);
-  ctx.fillStyle = "#ff8a6a";
-  ctx.fillRect(x + e.w / 2 - 4 + wob, y + 11, 4, 2);
-  // wheels
-  ctx.fillStyle = "#241f1a";
-  ctx.fillRect(x + 4, y + e.h - 6, 8, 6);
-  ctx.fillRect(x + e.w - 12, y + e.h - 6, 8, 6);
-  // brush
-  ctx.fillStyle = "#6b6259";
-  ctx.fillRect(x + e.w / 2 - 8, y + e.h - 4, 16, 2);
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(x + e.w / 2 + 8, y + e.h * 0.3 + wob, 4, 4);
+  ctx.fillStyle = C.ink;
+  ctx.fillRect(x + e.w / 2 + 9, y + e.h * 0.31 + wob, 2, 2);
+  // wing
+  ctx.fillStyle = "#7B2118";
+  ctx.beginPath(); ctx.ellipse(x + e.w / 2 - 5, y + e.h * 0.55, 9, 5, -0.3, 0, 7); ctx.fill();
+  // feet
+  ctx.fillStyle = "#E6A700";
+  ctx.fillRect(x + e.w / 2 - 2, y + e.h - 4, 3, 4);
+  ctx.fillRect(x + e.w / 2 + 7, y + e.h - 4, 3, 4);
 }
 
 function drawGoal() {
   const g = world.goal; if (!g) return;
-  const x = g.x - world.cam, y = g.y;
-  const pulse = 1 + Math.sin(state.t * 3) * 0.02;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(pulse, pulse);
-  // cushion
-  ctx.fillStyle = "#5c3a21";
+  const x = Math.round(g.x - world.cam), y = g.y;
+  const w = 148, h = 104;
+  const x0 = x - w / 2, y0 = y - h;
+
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.beginPath(); ctx.ellipse(x, y + 2, w * 0.52, 9, 0, 0, 7); ctx.fill();
+
+  // stone walls
+  ctx.fillStyle = C.stone;
+  ctx.fillRect(x0, y0, w, h);
+  ctx.fillStyle = C.stoneDark;
+  for (let py = y0 + 10; py < y; py += 15) {
+    ctx.fillRect(x0, py, w, 2);
+    const off = ((py / 15) % 2) ? 8 : 26;
+    for (let px = x0 + off; px < x0 + w - 4; px += 36) ctx.fillRect(px, py, 2, 15);
+  }
+
+  // roof
+  ctx.fillStyle = C.roof;
   ctx.beginPath();
-  ctx.moveTo(-52, 0); ctx.lineTo(-44, -34); ctx.lineTo(44, -34); ctx.lineTo(52, 0);
+  ctx.moveTo(x0 - 14, y0 + 4); ctx.lineTo(x, y0 - 48); ctx.lineTo(x0 + w + 14, y0 + 4);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#8a5c34";
+  ctx.fillStyle = C.roofDark;
   ctx.beginPath();
-  ctx.moveTo(-44, -6); ctx.lineTo(-38, -30); ctx.lineTo(38, -30); ctx.lineTo(44, -6);
+  ctx.moveTo(x0 - 14, y0 + 4); ctx.lineTo(x, y0 - 48); ctx.lineTo(x, y0 + 4);
   ctx.closePath(); ctx.fill();
-  ctx.fillStyle = "#d9b26a";
-  ctx.fillRect(-4, -30, 8, 24);
-  ctx.fillRect(-30, -24, 60, 4);
-  // tassels
-  ctx.fillStyle = "#f2c14e";
-  ctx.fillRect(-52, -4, 6, 6); ctx.fillRect(46, -4, 6, 6);
-  // sparkle
-  const s = (Math.sin(state.t * 5) + 1) / 2;
-  ctx.fillStyle = `rgba(255,246,216,${0.4 + s * 0.6})`;
-  ctx.fillRect(-6, -56, 4, 12); ctx.fillRect(-10, -52, 12, 4);
-  ctx.restore();
+
+  // door
+  const dw = 42, dh = 56;
+  ctx.fillStyle = "#2E1B12";
+  ctx.fillRect(x - dw / 2, y - dh, dw, dh);
+  ctx.fillStyle = "#5D4037";
+  ctx.fillRect(x - dw / 2 + 3, y - dh + 3, dw - 6, dh - 3);
+  ctx.fillStyle = C.gold;
+  ctx.fillRect(x + dw / 2 - 9, y - dh / 2, 3, 3);
+
+  // paw print on the door
+  ctx.fillStyle = "#E8DCC0";
+  ctx.beginPath(); ctx.ellipse(x, y - 26, 6, 5, 0, 0, 7); ctx.fill();
+  for (const [dx, dy] of [[-7, -8], [-2, -11], [4, -11], [8, -7]]) {
+    ctx.beginPath(); ctx.arc(x + dx, y - 26 + dy, 2.4, 0, 7); ctx.fill();
+  }
+
+  // GOAL plaque
+  ctx.fillStyle = "#2E1B12";
+  ctx.fillRect(x - 34, y0 + 8, 68, 22);
+  ctx.fillStyle = C.gold;
+  ctx.fillRect(x - 32, y0 + 10, 64, 18);
+  text("GOAL", x, y0 + 14, 2, "#2E1B12", "center");
+
+  // sleeping cat waiting by the door
+  drawSleepingCat(x - 96, y);
+}
+
+function drawSleepingCat(baseX, groundY) {
+  const frames = (ATLAS.black.sleep && ATLAS.black.sleep.length) ? ATLAS.black.sleep : ATLAS.black.rest;
+  if (!frames) return;
+  const f = frames[Math.floor(state.t * 2) % frames.length];
+  ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, Math.round(baseX - f.w / 2), groundY - f.h + (f.foot || 0), f.w, f.h);
+
+  // Zzz
+  for (let i = 0; i < 3; i++) {
+    const p = ((state.t * 0.55 + i / 3) % 1);
+    const zx = baseX + 22 + p * 26;
+    const zy = groundY - 46 - p * 46;
+    ctx.globalAlpha = Math.sin(p * Math.PI) * 0.85;
+    text("Z", zx, zy, 1 + Math.floor(p * 2), "#FFFFFF");
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawPlayer() {
@@ -687,54 +934,127 @@ function drawPlayer() {
   }
 }
 
+function panel(x, y, w, h, r = 10) {
+  ctx.fillStyle = C.panel;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function textShadow(str, x, y, s, color, align = "left") {
+  text(str, x + s, y + s, s, "rgba(8,24,40,0.35)", align);
+  text(str, x, y, s, color, align);
+}
+
+function keycap(label, x, y, w, s = 1) {
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fillRect(x, y, w, 16);
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 15);
+  text(label, x + w / 2, y + 4, s, "#FFFFFF", "center");
+}
+
+function fishGlyph(x, y) {
+  ctx.fillStyle = "#B71C1C";
+  ctx.fillRect(x, y + 2, 16, 8);
+  ctx.fillRect(x - 5, y, 5, 5);
+  ctx.fillRect(x - 5, y + 7, 5, 5);
+  ctx.fillStyle = C.red;
+  ctx.fillRect(x + 1, y + 3, 14, 6);
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(x + 9, y + 4, 2, 2);
+}
+
 function drawHUD() {
+  const L = LEVELS[state.level];
+
+  // ---- top-left status ----
+  panel(16, 14, 262, 50);
+  // portrait
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.fillRect(24, 20, 38, 38);
+  const set = state.setIndex === 0 ? "black" : "grey";
+  const idle = ATLAS[set].idle;
+  const pf = idle[Math.floor(state.t * 4) % idle.length];
+  ctx.save();
+  ctx.beginPath(); ctx.rect(24, 20, 38, 38); ctx.clip();
+  const pw = pf.w * 0.5, ph = pf.h * 0.5;
+  ctx.drawImage(atlasImg, pf.x, pf.y, pf.w, pf.h,
+    24 + 19 - pw / 2, 20 + 38 - ph + (pf.foot || 0) * 0.5, pw, ph);
+  ctx.restore();
+
   // hearts
   for (let i = 0; i < 3; i++) {
     const on = i < state.lives;
-    const x = 22 + i * 34, y = 20;
-    ctx.fillStyle = on ? "#c2452f" : "rgba(27,20,16,0.18)";
-    ctx.fillRect(x + 2, y, 6, 4); ctx.fillRect(x + 14, y, 6, 4);
-    ctx.fillRect(x, y + 4, 22, 8);
-    ctx.fillRect(x + 3, y + 12, 16, 4);
-    ctx.fillRect(x + 7, y + 16, 8, 3);
-    if (on) { ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillRect(x + 4, y + 5, 4, 3); }
+    const x = 72 + i * 22, y = 26;
+    ctx.fillStyle = on ? C.red : "rgba(255,255,255,0.16)";
+    ctx.fillRect(x + 2, y, 5, 3); ctx.fillRect(x + 12, y, 5, 3);
+    ctx.fillRect(x, y + 3, 19, 7);
+    ctx.fillRect(x + 3, y + 10, 13, 3);
+    ctx.fillRect(x + 6, y + 13, 7, 3);
+    if (on) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(x + 3, y + 4, 4, 3); }
   }
-  // fish counter icon
-  const fx = 138, fy = 18;
-  ctx.fillStyle = "#c99a2e";
-  ctx.fillRect(fx, fy + 3, 20, 12);
-  ctx.fillRect(fx - 7, fy, 7, 6);
-  ctx.fillRect(fx - 7, fy + 12, 7, 6);
-  ctx.fillRect(fx - 3, fy + 4, 4, 10);
-  ctx.fillStyle = "#f2c14e";
-  ctx.fillRect(fx + 1, fy + 4, 17, 10);
-  ctx.fillStyle = "#fff6d8";
-  ctx.fillRect(fx + 5, fy + 6, 4, 4);
-  ctx.fillStyle = "#5c3a21";
-  ctx.fillRect(fx + 6, fy + 7, 2, 2);
-  text(`${state.coins}/${state.totalCoins}`, fx + 30, fy + 1, 2, "#1b1410");
 
-  // level name
-  text(LEVELS[state.level].name, W - 24, 20, 2, "rgba(27,20,16,0.55)", "right");
+  // fish count
+  fishGlyph(158, 27);
+  text(`X ${state.coins}/${state.totalCoins}`, 182, 26, 2, "#FFFFFF");
+
+  // ---- top-right world plate ----
+  panel(W - 262, 14, 246, 50);
+  text(`WORLD ${L.world}`, W - 32, 24, 1, "rgba(255,255,255,0.7)", "right");
+  text(L.name, W - 32, 38, 2, "#FFFFFF", "right");
+
+  // ---- first-room tutorial (top centre, clear of the play area) ----
+  if (state.level === 0 && state.t < 11) {
+    const fade = state.t > 9 ? Math.max(0, (11 - state.t) / 2) : 1;
+    ctx.globalAlpha = fade;
+    panel(W / 2 - 250, 78, 500, 56);
+    text("HELP THE CAT REACH HOME!", W / 2, 92, 2, "#FFFFFF", "center");
+    text("COLLECT FISH, AVOID BIRDS, FIND THE GOAL.", W / 2, 116, 1, "rgba(255,255,255,0.78)", "center");
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- control legend ----
+  panel(W - 296, H - 76, 280, 42);
+  keycap("<", W - 280, H - 64, 18);
+  keycap(">", W - 258, H - 64, 18);
+  text("MOVE", W - 232, H - 60, 1, "rgba(255,255,255,0.8)");
+  keycap("Z", W - 186, H - 64, 18);
+  text("JUMP", W - 164, H - 60, 1, "rgba(255,255,255,0.8)");
+  keycap("X", W - 120, H - 64, 18);
+  text("PAW", W - 98, H - 60, 1, "rgba(255,255,255,0.8)");
 
   if (paused) {
-    ctx.fillStyle = "rgba(20,16,13,0.62)"; ctx.fillRect(0, 0, W, H);
-    text("PAUSED", W / 2, H / 2 - 40, 5, "#f0e6c8", "center");
-    text("P TO RESUME", W / 2, H / 2 + 30, 2, "#b9a686", "center");
+    ctx.fillStyle = "rgba(8,16,24,0.6)"; ctx.fillRect(0, 0, W, H);
+    text("PAUSED", W / 2, H / 2 - 40, 5, "#FFFFFF", "center");
+    text("P TO RESUME", W / 2, H / 2 + 30, 2, "rgba(255,255,255,0.75)", "center");
   }
-  if (state.muted) text("MUTED", W - 24, 48, 2, "rgba(27,20,16,0.45)", "right");
+  if (state.muted) text("MUTED", W - 32, 74, 1, "rgba(255,255,255,0.6)", "right");
 }
 
 function drawTitle() {
   drawSky();
-  // ground strip
-  ctx.fillStyle = "#5c3a21"; ctx.fillRect(0, 470, W, 70);
-  ctx.fillStyle = "#7a4f2d"; ctx.fillRect(0, 470, W, 6);
-  ctx.fillStyle = "#8fae62";
-  for (let x = 0; x < W; x += 46) { const h = 4 + ((x * 13) % 6); ctx.fillRect(x + 4, 470 - h, 3, h); }
 
-  text("CAT HERO", W / 2, 96, 9, "#1b1410", "center");
-  text("A VERY SMALL ADVENTURE", W / 2, 180, 2, "#7a6a52", "center");
+  // ground strip
+  ctx.fillStyle = C.dirt; ctx.fillRect(0, 470, W, 70);
+  ctx.fillStyle = C.grass; ctx.fillRect(0, 470, W, 12);
+  ctx.fillStyle = C.grassHi; ctx.fillRect(0, 470, W, 3);
+  ctx.fillStyle = C.dirtDark;
+  for (let x = 8; x < W; x += 30) ctx.fillRect(x, 494 + ((x * 7) % 20), 10, 6);
+
+  drawTree(120, 470, 1.1);
+  drawTree(838, 470, 1);
+  drawBush(250, 470);
+  drawBush(700, 470);
+
+  textShadow("CAT HERO", W / 2, 84, 9, "#FFFFFF", "center");
+  textShadow("A VERY SMALL ADVENTURE", W / 2, 172, 2, "#FFF8D6", "center");
 
   const set = state.setIndex === 0 ? "black" : "grey";
   const idle = ATLAS[set].idle;
@@ -742,13 +1062,17 @@ function drawTitle() {
   ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, W / 2 - f.w, 470 - f.h * 2, f.w * 2, f.h * 2);
 
   const blink = Math.sin(state.t * 4) > -0.2;
-  if (blink) text("PRESS ENTER", W / 2, 252, 3, "#1b1410", "center");
-  text("ARROWS MOVE   SPACE JUMP   J PAW", W / 2, 306, 2, "#7a6a52", "center");
+  if (blink) {
+    panel(W / 2 - 150, 236, 300, 46);
+    text("PRESS ENTER OR TAP", W / 2, 250, 2, "#FFFFFF", "center");
+  }
+  panel(W / 2 - 220, 296, 440, 34);
+  text("ARROWS MOVE   SPACE JUMP   J PAW", W / 2, 306, 2, "#FFF8D6", "center");
 }
 
 function drawSelect() {
   drawSky();
-  text("CHOOSE YOUR HERO", W / 2, 70, 4, "#1b1410", "center");
+  textShadow("CHOOSE YOUR HERO", W / 2, 58, 4, "#FFFFFF", "center");
   const opts = [
     { key: "black", label: "BLACK CAT", sub: "NIMBLE" },
     { key: "grey", label: "GREY CAT", sub: "STEADY" },
@@ -756,21 +1080,21 @@ function drawSelect() {
   opts.forEach((o, i) => {
     const cx = W / 2 + (i === 0 ? -190 : 190);
     const sel = state.setIndex === i;
-    ctx.fillStyle = sel ? "rgba(242,193,78,0.35)" : "rgba(27,20,16,0.06)";
-    ctx.fillRect(cx - 140, 150, 280, 250);
-    ctx.strokeStyle = sel ? "#1b1410" : "rgba(27,20,16,0.2)";
-    ctx.lineWidth = sel ? 4 : 2;
-    ctx.strokeRect(cx - 140, 150, 280, 250);
+    panel(cx - 140, 132, 280, 286, 14);
+    if (sel) {
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(cx - 140, 132, 280, 286);
+    }
 
     const frames = ATLAS[o.key].idle;
     const f = frames[Math.floor(state.t * 6) % frames.length];
-    const sc = 1.7;
-    ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, cx - f.w * sc / 2, 380 - f.h * sc, f.w * sc, f.h * sc);
-    text(o.label, cx, 410, 2, "#1b1410", "center");
-    text(o.sub, cx, 440, 1, "#7a6a52", "center");
-    if (sel) text("*", cx, 128, 3, "#c2452f", "center");
+    ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, cx - f.w, 372 - f.h * 2, f.w * 2, f.h * 2);
+    text(o.label, cx, 386, 2, "#FFFFFF", "center");
+    text(o.sub, cx, 410, 1, "rgba(255,255,255,0.65)", "center");
+    if (sel) text("*", cx, 112, 3, C.gold, "center");
   });
-  text("ARROWS TO SWITCH   ENTER TO START", W / 2, 500, 1, "#7a6a52", "center");
+  textShadow("ARROWS OR TAP TO SWITCH   ENTER TO START", W / 2, 480, 1, "#FFF8D6", "center");
 }
 
 function drawOverlayCard(title, sub, color) {
@@ -793,6 +1117,8 @@ function render() {
   ctx.translate(Math.round(ox), Math.round(oy));
 
   drawSky();
+  drawWater();
+  drawDecor();
   drawSolids();
   drawGoal();
   for (const c of world.coins) if (!c.got) drawCoin(c);
@@ -817,17 +1143,19 @@ function render() {
     text("ENTER TO TRY AGAIN", W / 2, H / 2 + 80, 2, "#e8dcc0", "center");
   }
   if (state.mode === "win") {
-    ctx.fillStyle = "#f0e6c8"; ctx.fillRect(0, 0, W, H);
-    text("HERO OF THE HOUSE", W / 2, 120, 5, "#1b1410", "center");
-    text("ALL THREE ROOMS CLEARED", W / 2, 200, 2, "#7a6a52", "center");
-    text(`FISH ${state.fish}`, W / 2, 250, 3, "#c99a2e", "center");
+    drawSky();
+    ctx.fillStyle = "rgba(8,16,24,0.55)"; ctx.fillRect(0, 0, W, H);
+    panel(W / 2 - 350, 70, 700, 400, 18);
+    text("HERO OF THE HOUSE", W / 2, 120, 5, "#FFFFFF", "center");
+    text("ALL THREE MEADOWS CLEARED", W / 2, 200, 2, "rgba(255,255,255,0.8)", "center");
+    text(`FISH ${state.fish}`, W / 2, 246, 3, C.gold, "center");
     ["black", "grey"].forEach((set, i) => {
       const fr = ATLAS[set].idle;
       const f = fr[Math.floor(state.t * 5 + i) % fr.length];
       const x = W / 2 + (i === 0 ? -150 : 90);
       ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, x, 380 - f.h * 1.6, f.w * 1.6, f.h * 1.6);
     });
-    text("ENTER TO PLAY AGAIN", W / 2, 470, 2, "#1b1410", "center");
+    text("ENTER TO PLAY AGAIN", W / 2, 430, 2, "#FFFFFF", "center");
   }
 }
 

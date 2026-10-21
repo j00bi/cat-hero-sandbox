@@ -76,7 +76,7 @@ for b in bodies:
 # --- rebuild each frame from every blob in the row --------------------------
 ROW_INDEX = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6,
              7: 0, 8: 1, 9: 2, 10: 3, 11: 4, 12: 5, 13: 6}
-NAMES = ["idle", "walk", "run", "jump", "bat"]
+NAMES = ["idle", "walk", "run", "jump", "bat", "rest", "sleep"]
 
 frames = {"black": {}, "grey": {}}
 sheet_rows = []

@@ -20,10 +20,12 @@ python3 -m http.server 8123
 | Action | Keys |
 |---|---|
 | Move | `←` `→` (or `A` `D`) |
-| Jump | `Space` / `↑` / `W` — hold for height |
-| Paw swipe | `J` / `X` / `Z` |
+| Jump | `Space` / `Z` / `↑` / `W` — hold for height |
+| Paw swipe | `X` / `J` |
 | Pause | `P` / `Esc` |
 | Mute | `M` |
+
+On a phone: **tap the screen to start**, then use the on-screen pad.
 
 Touch controls appear automatically on phones and tablets.
 
@@ -58,6 +60,7 @@ Not eyeballed — measured. All three scripts run against a live Chromium.
 node tools/test.mjs        # 14 gameplay assertions
 node tools/reach.mjs       # every platform reachable from spawn
 node tools/playthrough.mjs # autopilot finishes all 3 rooms
+node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
 ```
 
 - `test.mjs` — boots the game, plays it with real key events: menu → hero select → room,

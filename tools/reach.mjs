@@ -16,7 +16,19 @@ const report = await page.evaluate(() => {
   }
 
   return LEVELS.map((L, li) => {
-    const nodes = L.solids.map((s, i) => ({ ...s, i, key: i })).filter((s) => s.w >= 40);
+    const nodes = L.solids.filter((s) => s.w >= 40).map((s, i) => ({ ...s, i, key: i }));
+    // A moving platform counts as every point on its travel path: you can board
+    // it anywhere along the sweep and it carries you to the rest.
+    const plats = L.platforms || [];
+    for (const q of plats) {
+      const i = nodes.length;
+      // Vertical lifts are judged from their lowest point: you board them at the
+      // bottom and ride up, so treating the whole sweep as one high node would
+      // wrongly report them unreachable from the ground.
+      nodes.push(q.axis === "y"
+        ? { x: q.x, w: q.w, y: q.y + q.range, h: q.h, i, key: i }
+        : { x: q.x - q.range, w: q.w + q.range * 2, y: q.y, h: q.h, i, key: i });
+    }
     const startIdx = nodes.reduce((best, n) =>
       Math.abs(n.x - L.spawn.x) < Math.abs(nodes[best].x - L.spawn.x) ? n.i : best, 0);
 

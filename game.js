@@ -310,13 +310,127 @@ const LEVELS = [
       { t: "tree", x: 2820, s: 0.95 }, { t: "bush", x: 3100 },
     ],
   },
+  {
+    world: "1-4", name: "CLOUD DOCKS",
+    width: 3000,
+    spawn: { x: 80, y: 380 },
+    solids: [
+      rect(0, 470, 760, 90), rect(880, 470, 700, 90), rect(1700, 470, 640, 90),
+      rect(2460, 470, 540, 90),
+      rect(400, 380, 150, 24), rect(1060, 380, 160, 24), rect(1880, 380, 160, 24),
+      rect(2620, 380, 150, 24),
+    ],
+    // Drifting dock planks. Rideable, and the only way to the high fish lines.
+    platforms: [
+      { x: 600, y: 296, w: 140, h: 18, axis: "x", range: 110, speed: 0.8, phase: 0 },
+      { x: 1420, y: 300, w: 140, h: 18, axis: "x", range: 120, speed: 0.72, phase: 1.5 },
+      { x: 2000, y: 320, w: 130, h: 18, axis: "y", range: 70, speed: 0.9, phase: 2.2 },
+    ],
+    coins: [
+      ...arc(300, 404, 5), ...line(430, 324, 3), ...line(620, 252, 4),
+      ...arc(1000, 404, 5), ...line(1090, 292, 3), ...line(1450, 256, 4),
+      ...arc(1800, 404, 5), ...line(1910, 308, 3), ...line(2200, 404, 4),
+      ...line(2650, 256, 3), ...line(2760, 380, 3),
+    ],
+    enemies: [
+      { x: 500, min: 380, max: 720 },
+      { x: 1150, min: 900, max: 1520 },
+      { x: 2000, min: 1720, max: 2300 },
+      { x: 2650, min: 2480, max: 2960 },
+    ],
+    goal: { x: 2900, y: 470 },
+    decor: [
+      { t: "sign", x: 120 }, { t: "tree", x: 240 }, { t: "bush", x: 340 },
+      { t: "tree", x: 700 }, { t: "bush", x: 900 }, { t: "tree", x: 1120 },
+      { t: "bush", x: 1300 }, { t: "tree", x: 1760 }, { t: "bush", x: 1900 },
+      { t: "tree", x: 2100 }, { t: "bush", x: 2300 }, { t: "tree", x: 2500 },
+      { t: "bush", x: 2760 },
+    ],
+  },
+  {
+    world: "1-5", name: "THE OLD MILL",
+    width: 3400,
+    spawn: { x: 70, y: 380 },
+    solids: [
+      rect(0, 470, 820, 90), rect(940, 470, 880, 90), rect(1920, 470, 700, 90),
+      rect(2720, 470, 680, 90),
+      rect(300, 380, 150, 24), rect(1180, 380, 160, 24), rect(2180, 380, 150, 24),
+      rect(2860, 380, 160, 24),
+    ],
+    // Mill lifts: vertical, slow, and generous — stand on one and wait.
+    platforms: [
+      { x: 700, y: 380, w: 130, h: 18, axis: "y", range: 70, speed: 0.85, phase: 0.5 },
+      { x: 1500, y: 300, w: 150, h: 18, axis: "x", range: 130, speed: 0.75, phase: 1.1 },
+      { x: 2350, y: 400, w: 120, h: 18, axis: "y", range: 80, speed: 0.95, phase: 2.0 },
+    ],
+    coins: [
+      ...arc(320, 404, 5), ...line(330, 306, 3), ...line(700, 290, 4),
+      ...arc(1080, 404, 4), ...line(1210, 276, 3), ...line(1520, 256, 4),
+      ...arc(2000, 404, 5), ...line(2210, 286, 3), ...line(2380, 310, 4),
+      ...line(2890, 256, 4), ...arc(3100, 404, 4),
+    ],
+    enemies: [
+      { x: 420, min: 300, max: 760 },
+      { x: 1000, min: 960, max: 1400 },
+      { x: 1600, min: 1420, max: 1800 },
+      { x: 2100, min: 1940, max: 2560 },
+      { x: 2950, min: 2740, max: 3340 },
+    ],
+    goal: { x: 3250, y: 470 },
+    decor: [
+      { t: "sign", x: 116 }, { t: "tree", x: 200, s: 1.05 }, { t: "bush", x: 420 },
+      { t: "tree", x: 780 }, { t: "bush", x: 980 }, { t: "tree", x: 1300 },
+      { t: "bush", x: 1900 }, { t: "tree", x: 2000 }, { t: "bush", x: 2200 },
+      { t: "tree", x: 2760 }, { t: "bush", x: 3000 }, { t: "tree", x: 3200, s: 0.9 },
+    ],
+  },
+  {
+    world: "1-6", name: "HOME AT LAST",
+    width: 3800,
+    spawn: { x: 60, y: 380 },
+    solids: [
+      rect(0, 470, 640, 90), rect(760, 470, 620, 90), rect(1480, 470, 560, 90),
+      rect(2140, 470, 700, 90), rect(2940, 470, 860, 90),
+      rect(320, 380, 150, 24), rect(980, 380, 160, 24), rect(1700, 380, 150, 24),
+      rect(2380, 380, 170, 24), rect(3120, 380, 150, 24),
+    ],
+    // Everything at once, on the way home.
+    platforms: [
+      { x: 560, y: 300, w: 150, h: 18, axis: "x", range: 130, speed: 0.8, phase: 0.3 },
+      { x: 1760, y: 380, w: 120, h: 18, axis: "y", range: 80, speed: 0.9, phase: 1.7 },
+      { x: 2700, y: 300, w: 150, h: 18, axis: "x", range: 120, speed: 0.7, phase: 2.6 },
+    ],
+    coins: [
+      ...arc(280, 404, 5), ...line(350, 316, 3), ...line(840, 256, 4),
+      ...arc(900, 404, 5), ...line(1010, 296, 3), ...line(1730, 286, 3),
+      ...arc(1900, 404, 4), ...line(2000, 404, 3), ...line(2410, 256, 4),
+      ...arc(2600, 404, 4), ...line(2730, 246, 4), ...line(3150, 236, 3),
+      ...arc(3400, 404, 5),
+    ],
+    enemies: [
+      { x: 380, min: 200, max: 600 },
+      { x: 900, min: 780, max: 1340 },
+      { x: 1600, min: 1500, max: 2000 },
+      { x: 2300, min: 2160, max: 2800 },
+      { x: 3000, min: 2960, max: 3300 },
+      { x: 3400, min: 2960, max: 3740 },
+    ],
+    goal: { x: 3600, y: 470 },
+    decor: [
+      { t: "sign", x: 112 }, { t: "tree", x: 200 }, { t: "bush", x: 330 },
+      { t: "tree", x: 700 }, { t: "bush", x: 900 }, { t: "tree", x: 1200 },
+      { t: "bush", x: 1500 }, { t: "tree", x: 1800 }, { t: "bush", x: 2100 },
+      { t: "tree", x: 2400 }, { t: "bush", x: 2600 }, { t: "tree", x: 2900 },
+      { t: "bush", x: 3200, }, { t: "tree", x: 3460, s: 1.15 },
+    ],
+  },
 ];
 
 /* ---------------------------------------------------------------- player */
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null,
 };
 
 function loadLevel(i) {
@@ -333,6 +447,11 @@ function loadLevel(i) {
     vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0,
   }));
   world.goal = { x: L.goal.x, y: L.goal.y, t: 0 };
+  world.plats = (L.platforms || []).map((q) => ({
+    x: q.x, y: q.y, w: q.w, h: q.h, ox: q.x, oy: q.y,
+    axis: q.axis || "x", range: q.range || 0, speed: q.speed || 0,
+    phase: q.phase || 0, dx: 0, dy: 0, plat: true,
+  }));
   world.particles.length = 0;
   world.cam = Math.max(0, Math.min(player.x - W * 0.36, L.width - W));
   world.total = L.coins.length;
@@ -346,7 +465,7 @@ function loadLevel(i) {
 
 const world = {
   level: null, coins: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
-  goal: null, time: 0, checkpoint: 0,
+  goal: null, time: 0, checkpoint: 0, plats: [],
 };
 
 /* ------------------------------------------------------------- collision */
@@ -356,6 +475,7 @@ function overlaps(a, b) {
 
 function solidHit(box) {
   for (const s of world.level.solids) if (overlaps(box, s)) return s;
+  for (const q of world.plats) if (overlaps(box, q)) return q;
   return null;
 }
 
@@ -371,6 +491,7 @@ function movePlayer(dt) {
 
   p.y += p.vy * dt;
   p.onGround = false;
+  p.ride = null;
   box = rect(p.x, p.y, p.w, p.h);
   s = solidHit(box);
   if (s) {
@@ -379,6 +500,7 @@ function movePlayer(dt) {
       if (p.vy > 420) { sfx.land(); dust(p.x + p.w / 2, p.y + p.h, 4); }
       p.vy = 0;
       p.onGround = true;
+      if (s.plat) p.ride = s;
     } else if (p.vy < 0) {
       p.y = s.y + s.h; p.vy = 0;
     }
@@ -425,6 +547,16 @@ function update(dt) {
 
   const p = player;
   world.time += dt;
+
+  // moving platforms: advance, then carry whoever is standing on one
+  for (const q of world.plats) {
+    const ph = world.time * q.speed + q.phase;
+    const nx = q.axis === "x" ? q.ox + Math.sin(ph) * q.range : q.ox;
+    const ny = q.axis === "y" ? q.oy + Math.sin(ph) * q.range : q.oy;
+    q.dx = nx - q.x; q.dy = ny - q.y;
+    q.x = nx; q.y = ny;
+  }
+  if (p.ride) { p.x += p.ride.dx; p.y += p.ride.dy; }
 
   // horizontal input
   const want = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
@@ -767,6 +899,31 @@ function drawSolids() {
     // bottom shade
     ctx.fillStyle = C.dirtDark;
     ctx.fillRect(x, y + s.h - 4, s.w, 4);
+  }
+}
+
+function drawPlatforms() {
+  const cam = world.cam;
+  for (const q of world.plats) {
+    if (q.x + q.w < cam - 80 || q.x > cam + W + 80) continue;
+    const x = Math.round(q.x - cam), y = Math.round(q.y);
+
+    ctx.fillStyle = "rgba(8,18,26,0.20)";
+    ctx.fillRect(x + 4, y + q.h + 2, q.w - 8, 5);
+
+    ctx.fillStyle = "#7B5E3B";
+    ctx.fillRect(x, y, q.w, q.h);
+    ctx.fillStyle = "#5B4329";
+    ctx.fillRect(x, y + q.h - 5, q.w, 5);
+    ctx.fillStyle = "#C8A46A";
+    ctx.fillRect(x, y, q.w, 4);
+
+    ctx.fillStyle = "#3E2E1C";
+    for (let px = 8; px < q.w - 6; px += 18) ctx.fillRect(x + px, y + 7, 3, 3);
+
+    ctx.fillStyle = "#9E8B6B";
+    ctx.fillRect(x - 2, y, 4, q.h);
+    ctx.fillRect(x + q.w - 2, y, 4, q.h);
   }
 }
 
@@ -1120,6 +1277,7 @@ function render() {
   drawWater();
   drawDecor();
   drawSolids();
+  drawPlatforms();
   drawGoal();
   for (const c of world.coins) if (!c.got) drawCoin(c);
   for (const e of world.enemies) drawEnemy(e);
@@ -1147,7 +1305,7 @@ function render() {
     ctx.fillStyle = "rgba(8,16,24,0.55)"; ctx.fillRect(0, 0, W, H);
     panel(W / 2 - 350, 70, 700, 400, 18);
     text("HERO OF THE HOUSE", W / 2, 120, 5, "#FFFFFF", "center");
-    text("ALL THREE MEADOWS CLEARED", W / 2, 200, 2, "rgba(255,255,255,0.8)", "center");
+    text(`ALL ${LEVELS.length} MEADOWS CLEARED`, W / 2, 200, 2, "rgba(255,255,255,0.8)", "center");
     text(`FISH ${state.fish}`, W / 2, 246, 3, C.gold, "center");
     ["black", "grey"].forEach((set, i) => {
       const fr = ATLAS[set].idle;

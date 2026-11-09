@@ -11,7 +11,8 @@ await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(300);
 
 const results = [];
-for (let lv = 0; lv < 3; lv++) {
+const levelCount = await page.evaluate(() => window.__GAME.LEVELS.length);
+for (let lv = 0; lv < levelCount; lv++) {
   const r = await page.evaluate((level) => new Promise((resolve) => {
     const G = window.__GAME;
     G.state.lives = 3;

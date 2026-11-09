@@ -1,6 +1,6 @@
 # CAT HERO
 
-A small pixel platformer built around the **CAT HERO** sprite sheet. Three rooms, one cat,
+A small pixel platformer built around the **CAT HERO** sprite sheet. Six rooms, one cat,
 one cushion to get home to. No dependencies, no build step — plain Canvas 2D.
 
 ![gameplay](shots/hero.png)
@@ -34,7 +34,11 @@ Touch controls appear automatically on phones and tablets.
 - 3 lives. Falling into a gap costs one and respawns you at the room entrance.
 - Robot vacuums patrol every room. **Stomp** them from above, or **swipe** them with the paw.
 - Fish coins are score. The cushion at the end of each room is the exit.
-- Three rooms: **The Living Room**, **The Shelf**, **The Garden**.
+- Six rooms: **Meadow Fields**, **The Old Orchard**, **Sunset Ridge**, **Cloud Docks**,
+  **The Old Mill**, **Home At Last**.
+- **Moving platforms.** Dock planks drift sideways, mill lifts rise and fall. Stand on one
+  and it carries you — no input needed. They are the only way to reach some of the high
+  fish lines, and the floor is never the whole route.
 
 ## How the art got here
 
@@ -58,6 +62,7 @@ Not eyeballed — measured. All three scripts run against a live Chromium.
 
 ```bash
 node tools/test.mjs        # 14 gameplay assertions
+node tools/platforms.mjs   # planks travel + carry the cat
 node tools/reach.mjs       # every platform reachable from spawn
 node tools/playthrough.mjs # autopilot finishes all 3 rooms
 node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
@@ -66,8 +71,11 @@ node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
 - `test.mjs` — boots the game, plays it with real key events: menu → hero select → room,
   walks, jumps (measures a 105 px apex), swipes, stomps a robot, collects fish, clears the
   room, loads room 2, falls in a pit and confirms the life loss. Fails on any console error.
+- `platforms.mjs` — samples plank motion, drops the cat on a moving plank and on a vertical
+  lift, and asserts it is carried (last run: 32 px carried for 32 px of plank travel).
 - `reach.mjs` — BFS over standable surfaces using the jump envelope (190 px across,
-  112 px up). Catches decorative platforms that can never be reached.
+  112 px up), including moving-platform travel as standable ground. Catches decorative
+  ledges that can never be reached.
 - `playthrough.mjs` — an in-page autopilot holds right, jumps at gaps and walls, swipes at
   robots, and must reach the cushion in every room. Currently clears all three without
   losing a life.
@@ -83,16 +91,28 @@ import { chromium } from "/home/husni/.hermes/node/lib/node_modules/playwright/i
 ```
 index.html          canvas + touch buttons
 style.css           page chrome
-game.js             everything else (~900 lines, no deps)
+game.js             everything else (~1100 lines, no deps)
 assets/             extracted atlas, JSON, contact sheet
 tools/extract_atlas.py  sprite sheet -> atlas
+tools/platforms.mjs     moving-platform proof
 tools/*.mjs         tests (need a running server on :8123)
 shots/              screenshots produced by the tests
 ```
 
 ## Tuning
 
-Physics lives at the top of `game.js`: `GRAV 2200`, `JUMP_V -690` (≈105 px apex),
+Physics lives at the top of `game.js`: `GRAV 2200`, `JUMP_V -690` (≈108 px apex),
 `MOVE 272`, plus coyote time and a jump buffer. Rooms are plain data — `rect()`, `arc()`
 and `line()` helpers build `solids`, `coins` and `enemies`; add a room to `LEVELS` and it
 is playable immediately.
+
+Moving platforms are a `platforms` array per room:
+
+```js
+{ x: 600, y: 300, w: 140, h: 18, axis: "x", range: 110, speed: 0.8, phase: 0 }
+```
+
+`axis` is `"x"` (drift) or `"y"` (lift), `range` is the half-travel in pixels, `speed` is
+radians/sec and `phase` offsets the cycle. The position is
+`origin ± sin(t * speed + phase) * range`, so a plank is always somewhere on its path —
+levels stay deterministic and the reach checker can treat the sweep as standable ground.

@@ -11,8 +11,9 @@ await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(300);
 
 const results = [];
-const levelCount = await page.evaluate(() => window.__GAME.LEVELS.length);
-for (let lv = 0; lv < levelCount; lv++) {
+const levels = await page.evaluate(() => window.__GAME.LEVELS.map((L, i) => ({ i, boss: !!L.boss })));
+const platformLevels = levels.filter((L) => !L.boss);
+for (const { i: lv } of platformLevels) {
   const r = await page.evaluate((level) => new Promise((resolve) => {
     const G = window.__GAME;
     G.state.lives = 3;

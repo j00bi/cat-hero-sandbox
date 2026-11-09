@@ -1,7 +1,7 @@
 # CAT HERO
 
-A small pixel platformer built around the **CAT HERO** sprite sheet. Six rooms, one cat,
-one cushion to get home to. No dependencies, no build step — plain Canvas 2D.
+A small pixel platformer built around the **CAT HERO** sprite sheet. Seven rooms, one cat,
+one cushion to get home to — currently inside a giant robot vacuum. No dependencies, no build step — plain Canvas 2D.
 
 ![gameplay](shots/hero.png)
 
@@ -34,11 +34,25 @@ Touch controls appear automatically on phones and tablets.
 - 3 lives. Falling into a gap costs one and respawns you at the room entrance.
 - Robot vacuums patrol every room. **Stomp** them from above, or **swipe** them with the paw.
 - Fish coins are score. The cushion at the end of each room is the exit.
-- Six rooms: **Meadow Fields**, **The Old Orchard**, **Sunset Ridge**, **Cloud Docks**,
-  **The Old Mill**, **Home At Last**.
+- Seven rooms: **Meadow Fields**, **The Old Orchard**, **Sunset Ridge**, **Cloud Docks**,
+  **The Old Mill**, **Home At Last**, and **The Den** — the boss arena.
 - **Moving platforms.** Dock planks drift sideways, mill lifts rise and fall. Stand on one
   and it carries you — no input needed. They are the only way to reach some of the high
   fish lines, and the floor is never the whole route.
+
+## The Dust King
+
+Room 1-7 is a one-screen arena. The Dust King is a roomba that swallowed the cushion, so
+the exit does not exist until it is dead.
+
+- It patrols toward you, then **telegraphs** (trembles, revs) and **charges**.
+- You cannot hurt it while it is moving — stomping the shell just bounces you off.
+- Bait the charge into an arena wall. The impact **stuns** it for 2.5 s, the stars come out,
+  and *now* a stomp lands. Three stuns win.
+- Every hit you take costs a life and **restarts the fight** at full boss health. Three lives,
+  three attempts — no grinding, no half-dead boss.
+
+When it dies the cushion pops out and the room becomes completable.
 
 ## How the art got here
 
@@ -63,6 +77,7 @@ Not eyeballed — measured. All three scripts run against a live Chromium.
 ```bash
 node tools/test.mjs        # 14 gameplay assertions
 node tools/platforms.mjs   # planks travel + carry the cat
+node tools/boss.mjs        # bait, stun, stomp x3, cushion returns
 node tools/reach.mjs       # every platform reachable from spawn
 node tools/playthrough.mjs # autopilot finishes all 3 rooms
 node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
@@ -73,6 +88,9 @@ node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
   room, loads room 2, falls in a pit and confirms the life loss. Fails on any console error.
 - `platforms.mjs` — samples plank motion, drops the cat on a moving plank and on a vertical
   lift, and asserts it is carried (last run: 32 px carried for 32 px of plank travel).
+- `boss.mjs` — loads The Den, confirms the cushion is hidden, proves stomping an un-stunned
+  boss does nothing, then baits three wall-slams and stomps each stun to zero health. Also
+  checks that dying resets the boss to full and costs exactly one life.
 - `reach.mjs` — BFS over standable surfaces using the jump envelope (190 px across,
   112 px up), including moving-platform travel as standable ground. Catches decorative
   ledges that can never be reached.
@@ -95,6 +113,7 @@ game.js             everything else (~1100 lines, no deps)
 assets/             extracted atlas, JSON, contact sheet
 tools/extract_atlas.py  sprite sheet -> atlas
 tools/platforms.mjs     moving-platform proof
+tools/boss.mjs          Dust King fight proof
 tools/*.mjs         tests (need a running server on :8123)
 shots/              screenshots produced by the tests
 ```

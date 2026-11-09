@@ -132,6 +132,10 @@ const sfx = {
   hit: () => beep(220, 0.18, "sawtooth", 0.12, 90),
   kill: () => beep(520, 0.1, "square", 0.1, 180),
   win: () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, 0.16, "square", 0.1), i * 110)); },
+  charge: () => beep(90, 0.45, "sawtooth", 0.10, 300),
+  clank: () => beep(140, 0.12, "square", 0.10, 60),
+  bossHit: () => { beep(160, 0.14, "square", 0.13, 70); setTimeout(() => beep(90, 0.2, "triangle", 0.10), 70); },
+  bossDie: () => { [300, 240, 180, 120, 70].forEach((f, i) => setTimeout(() => beep(f, 0.22, "sawtooth", 0.11, f * 0.5), i * 130)); },
 };
 
 /* ----------------------------------------------------------------- input */
@@ -424,6 +428,21 @@ const LEVELS = [
       { t: "bush", x: 3200, }, { t: "tree", x: 3460, s: 1.15 },
     ],
   },
+  {
+    world: "1-7", name: "THE DEN",
+    width: 1200,
+    spawn: { x: 90, y: 380 },
+    boss: true,
+    solids: [
+      rect(0, 470, 1200, 90),
+      rect(0, 0, 40, 470), rect(1160, 0, 40, 470),
+      rect(150, 356, 150, 24), rect(900, 356, 150, 24),
+    ],
+    coins: [...line(120, 300, 3), ...line(1020, 300, 3)],
+    enemies: [],
+    goal: { x: 600, y: 470 },
+    decor: [],
+  },
 ];
 
 /* ---------------------------------------------------------------- player */
@@ -446,7 +465,10 @@ function loadLevel(i) {
     x: e.x, y: 0, w: 40, h: 28, min: e.min, max: e.max,
     vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0,
   }));
-  world.goal = { x: L.goal.x, y: L.goal.y, t: 0 };
+  world.goalDef = L.goal;
+  // In the boss room the cushion only appears once the Dust King coughs it up.
+  world.goal = L.boss ? null : { x: L.goal.x, y: L.goal.y, t: 0 };
+  world.boss = L.boss ? makeBoss(L) : null;
   world.plats = (L.platforms || []).map((q) => ({
     x: q.x, y: q.y, w: q.w, h: q.h, ox: q.x, oy: q.y,
     axis: q.axis || "x", range: q.range || 0, speed: q.speed || 0,
@@ -465,7 +487,7 @@ function loadLevel(i) {
 
 const world = {
   level: null, coins: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
-  goal: null, time: 0, checkpoint: 0, plats: [],
+  goal: null, time: 0, checkpoint: 0, plats: [], boss: null, goalDef: null,
 };
 
 /* ------------------------------------------------------------- collision */
@@ -523,6 +545,12 @@ function hurt(fell) {
   p.invuln = 1.4;
   if (fell) { p.x = p.spawnX; p.y = p.spawnY; p.vx = p.vy = 0; }
   else { p.vx = -p.facing * 240; p.vy = -320; }
+  // Boss room: every hit is a clean retry — back to the door, boss at full health.
+  if (world.boss && !world.boss.dead) {
+    p.x = p.spawnX; p.y = p.spawnY; p.vx = 0; p.vy = 0;
+    p.ride = null; p.invuln = 1.6;
+    resetBoss();
+  }
 }
 
 /* -------------------------------------------------------------- particles */
@@ -653,6 +681,8 @@ function update(dt) {
     }
   }
 
+  updateBoss(dt);
+
   // coins
   for (const c of world.coins) {
     if (c.got) continue;
@@ -679,6 +709,104 @@ function update(dt) {
 
   updateParticles(dt);
   state.shake = Math.max(0, state.shake - dt * 40);
+}
+
+/* ------------------------------------------------------------- the boss */
+function makeBoss(L) {
+  return {
+    x: L.width - 300, y: 470 - 72, w: 104, h: 72,
+    hp: 3, maxHp: 3, state: "patrol", t: 0, dir: -1, timer: 2.2,
+    vx: 0, stun: 0, invuln: 0, flash: 0, spin: 0, dead: false, deadT: 0,
+  };
+}
+
+function resetBoss() {
+  const L = world.level;
+  const b = makeBoss(L);
+  world.boss = b;
+}
+
+function killBoss() {
+  const b = world.boss;
+  b.dead = true; b.deadT = 0; b.hp = 0;
+  state.shake = 16;
+  sfx.bossDie();
+  burst(b.x + b.w / 2, b.y + b.h / 2, 40, "#8E7B5E");
+  burst(b.x + b.w / 2, b.y + b.h / 2, 24, "#C8A46A");
+}
+
+function updateBoss(dt) {
+  const b = world.boss;
+  if (!b) return;
+  const p = player;
+
+  if (b.dead) {
+    b.deadT += dt;
+    if (b.deadT > 0.9 && !world.goal) {
+      world.goal = { x: world.goalDef.x, y: world.goalDef.y, t: 0 };
+      burst(world.goalDef.x, world.goalDef.y - 50, 26, "#f2c14e");
+    }
+    return;
+  }
+
+  b.t += dt;
+  b.spin += dt * (b.state === "charge" ? 30 : 6);
+  b.flash = Math.max(0, b.flash - dt);
+  b.invuln = Math.max(0, b.invuln - dt);
+
+  const minX = 44, maxX = world.level.width - 44 - b.w;
+
+  if (b.state === "patrol") {
+    b.dir = (p.x + p.w / 2) < (b.x + b.w / 2) ? -1 : 1;
+    b.x += b.dir * (95 + (b.maxHp - b.hp) * 40) * dt;
+    b.timer -= dt;
+    if (b.timer <= 0 && Math.abs((p.x + p.w / 2) - (b.x + b.w / 2)) < 560) {
+      b.state = "telegraph"; b.t = 0; sfx.charge();
+    }
+  } else if (b.state === "telegraph") {
+    if (b.t > 0.55) {
+      b.state = "charge"; b.t = 0;
+      b.vx = b.dir * (640 + (b.maxHp - b.hp) * 80);
+    }
+  } else if (b.state === "charge") {
+    b.x += b.vx * dt;
+    if (b.x <= minX || b.x >= maxX) {
+      b.x = Math.max(minX, Math.min(maxX, b.x));
+      b.state = "stun"; b.stun = 2.5; b.vx = 0;
+      state.shake = 12; sfx.clank();
+      dust(b.x + b.w / 2, b.y + b.h, 12);
+    }
+  } else if (b.state === "stun") {
+    b.stun -= dt;
+    if (b.stun <= 0) { b.state = "patrol"; b.timer = 1.5; }
+  } else if (b.state === "hurt") {
+    b.x += b.vx * dt; b.vx *= 0.88;
+    if (b.t > 0.6) { b.state = "patrol"; b.timer = 1.1; }
+  }
+
+  b.x = Math.max(minX, Math.min(maxX, b.x));
+
+  const pb = rect(p.x, p.y, p.w, p.h);
+  const bb = rect(b.x, b.y, b.w, b.h);
+  if (!p.dead && overlaps(pb, bb)) {
+    const stomping = p.vy > 120 && p.y + p.h - p.vy * dt <= b.y + 16;
+    if (stomping) {
+      if (b.state === "stun" && b.invuln <= 0) {
+        b.hp--; b.flash = 0.45; b.invuln = 0.7;
+        b.state = "hurt"; b.t = 0; b.vx = -b.dir * 280;
+        p.vy = -540; p.onGround = false;
+        p.invuln = 0.4;   // stay inside the shell for a frame while bouncing out
+        state.shake = 12; sfx.bossHit();
+        burst(b.x + b.w / 2, b.y + 10, 18, "#C8A46A");
+        if (b.hp <= 0) killBoss();
+      } else {
+        p.vy = -440; p.invuln = 0.25; sfx.clank();
+        burst(p.x + p.w / 2, p.y + p.h, 6, "#9E8B6B");
+      }
+    } else {
+      hurt(false);
+    }
+  }
 }
 
 function killEnemy(e, knock) {
@@ -1067,6 +1195,76 @@ function drawSleepingCat(baseX, groundY) {
   }
 }
 
+function drawBoss() {
+  const b = world.boss;
+  if (!b) return;
+  const x = Math.round(b.x - world.cam), y = Math.round(b.y);
+  const cx = x + b.w / 2, cy = y + b.h / 2;
+
+  ctx.fillStyle = "rgba(8,18,26,0.25)";
+  ctx.beginPath(); ctx.ellipse(cx, y + b.h - 2, b.w * 0.48, 9, 0, 0, 7); ctx.fill();
+
+  if (b.dead) {
+    ctx.fillStyle = "#4A4238";
+    ctx.beginPath(); ctx.ellipse(cx, cy + 12, b.w * 0.46, b.h * 0.26, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#C8A46A";
+    ctx.fillRect(cx - 10, cy + 2, 20, 6);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = "rgba(180,170,150,0.5)";
+      ctx.fillRect(cx - 30 + i * 22, cy - 14 - i * 6, 8, 8);
+    }
+    return;
+  }
+
+  // spinning brush skirt
+  ctx.strokeStyle = "#6B5A44"; ctx.lineWidth = 3;
+  for (let i = 0; i < 10; i++) {
+    const a = b.spin + i * (Math.PI / 5);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 22);
+    ctx.lineTo(cx + Math.cos(a) * 54, cy + Math.sin(a) * 33);
+    ctx.stroke();
+  }
+
+  // shell
+  ctx.fillStyle = b.flash > 0 ? "#F6E7C8" : "#3A3630";
+  ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = b.flash > 0 ? "#FFF8E7" : "#5A5348";
+  ctx.beginPath(); ctx.ellipse(cx, cy - 7, b.w * 0.38, b.h * 0.30, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#8E8271"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.stroke();
+
+  // the cushion it swallowed, visible through the intake
+  ctx.fillStyle = "#C2452F";
+  ctx.fillRect(cx - 13, cy + 4, 26, 8);
+  ctx.fillStyle = "#E8B44A";
+  ctx.fillRect(cx - 13, cy + 4, 26, 2);
+
+  // eye
+  const angry = b.state === "charge" || b.state === "telegraph";
+  const ex = cx + b.dir * 12;
+  ctx.fillStyle = angry ? "#E53935" : "#8CD9F2";
+  ctx.beginPath(); ctx.arc(ex, cy - 10, angry ? 7 : 5, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillRect(ex - 2, cy - 13, 3, 3);
+
+  // telegraph tremble
+  if (b.state === "telegraph") {
+    ctx.fillStyle = "rgba(229,57,53,0.20)";
+    ctx.fillRect(x - 10, y - 10, b.w + 20, b.h + 12);
+  }
+
+  // stun stars
+  if (b.state === "stun") {
+    for (let i = 0; i < 3; i++) {
+      const a = state.t * 6 + i * 2.1;
+      const sx = cx + Math.cos(a) * 34, sy = cy - 40 + Math.sin(a) * 8;
+      ctx.fillStyle = C.gold;
+      ctx.fillRect(Math.round(sx) - 3, Math.round(sy) - 3, 6, 6);
+    }
+  }
+}
+
 function drawPlayer() {
   const p = player;
   if (p.invuln > 0 && Math.floor(p.invuln * 20) % 2 === 0) return;
@@ -1166,6 +1364,25 @@ function drawHUD() {
   panel(W - 262, 14, 246, 50);
   text(`WORLD ${L.world}`, W - 32, 24, 1, "rgba(255,255,255,0.7)", "right");
   text(L.name, W - 32, 38, 2, "#FFFFFF", "right");
+
+  // ---- boss health ----
+  if (world.boss && !world.boss.dead) {
+    const bw = 300, bx = W / 2 - bw / 2;
+    panel(bx, 14, bw, 50);
+    text("THE DUST KING", W / 2, 22, 1, "rgba(255,255,255,0.72)", "center");
+    for (let i = 0; i < world.boss.maxHp; i++) {
+      const on = i < world.boss.hp;
+      const x = W / 2 - (world.boss.maxHp * 34) / 2 + i * 34;
+      ctx.fillStyle = on ? C.red : "rgba(255,255,255,0.16)";
+      ctx.fillRect(x, 34, 28, 18);
+      if (on) { ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.fillRect(x + 3, 37, 22, 4); }
+    }
+    if (world.boss.state === "stun") {
+      ctx.globalAlpha = 0.6 + Math.sin(state.t * 12) * 0.4;
+      text("STOMP IT!", W / 2, 96, 2, "#FFEB3B", "center");
+      ctx.globalAlpha = 1;
+    }
+  }
 
   // ---- first-room tutorial (top centre, clear of the play area) ----
   if (state.level === 0 && state.t < 11) {
@@ -1281,6 +1498,7 @@ function render() {
   drawGoal();
   for (const c of world.coins) if (!c.got) drawCoin(c);
   for (const e of world.enemies) drawEnemy(e);
+  if (world.boss) drawBoss();
   drawPlayer();
   for (const p of world.particles) {
     ctx.globalAlpha = Math.max(0, p.life / p.max);

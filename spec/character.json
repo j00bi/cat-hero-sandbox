@@ -1,75 +1,150 @@
 {
+  "spec_version": 2,
+  "what_changed": "Rescoped to a 1:1 art redesign of the existing character. No new mechanics, no wall cling, no 36-frame expansion. Same movements the game already ships, denser cycles, tuxedo + grey variants, in the labelled movement-sheet format.",
   "character": {
     "name": "Cat Hero",
-    "skins": ["black", "grey"],
-    "role": "player",
-    "summary": "Chunky black house cat, big head, short legs, heavy paws. Same cat as the current atlas, with a much wider acting range. No props, no clothes — the silhouette does the talking.",
-    "tone": ["cozy", "scrappy", "determined"],
+    "skins": [
+      "tuxedo",
+      "grey"
+    ],
+    "summary": "Chunky tuxedo cat \u2014 black coat with white bib, muzzle and paws \u2014 and the same cat in grey. Oversized round head, short legs, heavy paws, thick tail. Same character as today's atlas, redrawn with more frames and better acting.",
     "view": "side profile, facing right",
-    "style": "16-bit pixel art, 1px ink outline, flat fills with 2-step shading, no anti-aliasing, no gradient"
+    "style": "16-bit pixel art, 1 px ink outline, flat fills, 2-step shading, no anti-aliasing, no gradient"
   },
   "canvas": {
-    "cell": [96, 96],
+    "cell": [
+      96,
+      96
+    ],
     "foot_line_offset": 8,
     "transparent": true,
-    "scale_in_game": 1,
-    "hitbox": [34, 42],
-    "hitbox_note": "Body must fit inside 34x42 above the foot line. Tail, ears and swipe arc may overflow. The cat is drawn at 87x66 today and that footprint is the ceiling."
+    "hitbox": [
+      34,
+      42
+    ],
+    "hitbox_note": "Body inside 34x42 above the foot line; tail, ears and swipe arc may overflow. Existing footprint ceiling 87x66."
   },
   "palette": {
     "name": "Apollo",
     "lock": true,
-    "colors": ["#172038","#253a5e","#3c5e8b","#4f8fba","#73bed3","#a4dddb","#19332d","#25562e","#468232","#75a743","#a8ca58","#d0da91","#4d2b32","#7a4841","#ad7757","#c09473","#d7b594","#e7d5b3","#341c27","#602c2c","#884b2b","#be772b","#de9e41","#e8c170","#241527","#411d31","#752438","#a53030","#cf573c","#da863e","#1e1d39","#402751","#7a367b","#a23e8c","#c65197","#df84a5","#090a14","#10141f","#151d28","#202e37","#394a50","#577277","#819796","#a8b5b2","#c7cfcc","#ebede9"],
     "role_hints": {
-      "fur_black": ["#090a14", "#151d28", "#202e37"],
-      "fur_grey": ["#394a50", "#577277", "#819796"],
+      "tuxedo_coat": [
+        "#090a14",
+        "#151d28",
+        "#202e37"
+      ],
+      "tuxedo_white": [
+        "#ebede9",
+        "#c7cfcc",
+        "#a8b5b2"
+      ],
+      "grey_coat": [
+        "#394a50",
+        "#577277",
+        "#819796"
+      ],
       "eye": "#73bed3",
-      "highlight": "#ebede9",
       "accent": "#de9e41",
-      "shadow_under": "#6b000000"
-    }
+      "damage": "#a53030"
+    },
+    "colors": [
+      "#172038",
+      "#253a5e",
+      "#3c5e8b",
+      "#4f8fba",
+      "#73bed3",
+      "#a4dddb",
+      "#19332d",
+      "#25562e",
+      "#468232",
+      "#75a743",
+      "#a8ca58",
+      "#d0da91",
+      "#4d2b32",
+      "#7a4841",
+      "#ad7757",
+      "#c09473",
+      "#d7b594",
+      "#e7d5b3",
+      "#341c27",
+      "#602c2c",
+      "#884b2b",
+      "#be772b",
+      "#de9e41",
+      "#e8c170",
+      "#241527",
+      "#411d31",
+      "#752438",
+      "#a53030",
+      "#cf573c",
+      "#da863e",
+      "#1e1d39",
+      "#402751",
+      "#7a367b",
+      "#a23e8c",
+      "#c65197",
+      "#df84a5",
+      "#090a14",
+      "#10141f",
+      "#151d28",
+      "#202e37",
+      "#394a50",
+      "#577277",
+      "#819796",
+      "#a8b5b2",
+      "#c7cfcc",
+      "#ebede9"
+    ]
   },
   "animations": [
-    {"name": "idle", "frames": 4, "fps": 6, "trigger": "standing", "notes": "breathing loop, tail tip flickers on frame 3"},
-    {"name": "walk", "frames": 6, "fps": 11, "trigger": "20 < speed <= 200", "notes": "6-frame cycle with a proper contact/passing/lift on each side"},
-    {"name": "run", "frames": 6, "fps": 15, "trigger": "speed > 200", "notes": "body pitched forward, both paws off the ground on 2 frames"},
-    {"name": "jump", "frames": 3, "fps": 0, "trigger": "airborne", "notes": "frame chosen by velocity: rise (vy<-120), apex, fall (vy>200)"},
-    {"name": "cling", "frames": 2, "fps": 8, "trigger": "wall cling", "notes": "NEW. claws dug into wall, body vertical to wall, ears back, 2-frame grip shift"},
-    {"name": "walljump", "frames": 2, "fps": 0, "trigger": "jump while clinging", "notes": "NEW. push-off then a small flip; 0.12s one-shot"},
-    {"name": "swipe", "frames": 3, "fps": 16, "trigger": "paw attack", "notes": "wind-up, contact, follow-through; arc may overflow the hitbox"},
-    {"name": "hurt", "frames": 1, "fps": 0, "trigger": "damage", "notes": "NEW. eyes shut, ears flat, knocked back"},
-    {"name": "land", "frames": 2, "fps": 0, "trigger": "landing with vy > 420", "notes": "NEW. soft and hard variants; squash on frame 1"},
-    {"name": "skid", "frames": 2, "fps": 0, "trigger": "direction reversal at speed", "notes": "NEW. paws braced, tail counter-balancing"},
-    {"name": "sleep", "frames": 2, "fps": 6, "trigger": "decorative", "notes": "curled, tail over nose"},
-    {"name": "victory", "frames": 3, "fps": 8, "trigger": "room clear / win", "notes": "NEW. sit, stretch, tail up"}
-  ],
-  "total_frames": 36,
-  "mechanics_contract": {
-    "unchanged": ["move", "jump", "swipe", "stomp", "lives", "boss"],
-    "added": {
-      "wall_cling": {
-        "trigger": "airborne, pressing toward a solid wall, vy > 0",
-        "effect": "fall speed clamped to 120 px/s while held",
-        "anim": "cling"
-      },
-      "wall_jump": {
-        "trigger": "jump while clinging",
-        "velocity": [-620, 300],
-        "cooldown": 0.12,
-        "anim": "walljump"
-      }
+    {
+      "name": "walk",
+      "frames": 8,
+      "fps": 11,
+      "trigger": "20 < speed <= 200",
+      "notes": "full 8-frame cycle: contact, down, passing, up, contact, down, passing, up"
     },
-    "constants": {
-      "GRAV": 2200, "JUMP_V": -690, "MOVE": 272,
-      "WALL_SLIDE": 120, "WALL_JUMP_VY": -620, "WALL_JUMP_VX": 300
+    {
+      "name": "run",
+      "frames": 8,
+      "fps": 15,
+      "trigger": "speed > 200",
+      "notes": "body pitched forward, two fully airborne frames"
+    },
+    {
+      "name": "jump",
+      "frames": 4,
+      "fps": 0,
+      "trigger": "airborne",
+      "notes": "rise, apex, fall, land-ready. Game currently picks 3 poses by vy; the 4th is available for the landing frame"
+    },
+    {
+      "name": "swipe",
+      "frames": 4,
+      "fps": 16,
+      "trigger": "paw attack",
+      "notes": "KEPT DELIBERATELY: the sheet has no attack row, but the game's combat and the boss fight depend on it"
+    },
+    {
+      "name": "specials",
+      "frames": 4,
+      "fps": 6,
+      "trigger": "decorative / title screen",
+      "notes": "curl sleep, idle play, stretch, yawn"
     }
+  ],
+  "frames_per_variant": 28,
+  "total_frames": 56,
+  "mechanics": {
+    "status": "UNCHANGED",
+    "note": "No wall cling, no new ability, no physics change. Rows map onto the existing anim names: walk, run, jump, bat (swipe), rest/sleep (specials). Frame counts are data-driven by cat-atlas.json, so denser cycles need no code change."
   },
   "acceptance": [
-    "36 frames, one per cell, no empty or duplicated cells",
-    "every frame faces right",
-    "body inside 34x42 above the foot line; feet touch the foot line",
-    "all opaque pixels are Apollo colours (tolerance 0)",
-    "no anti-aliasing, no drop shadow, no background",
-    "black and grey skins share identical poses and timing"
+    "28 frames per variant, 56 total, in the documented row order",
+    "every frame faces right, feet on the foot line",
+    "body inside 34x42; tail/ears/swipe arc may overflow",
+    "opaque pixels are Apollo colours only (tolerance 0)",
+    "binary alpha, no halo, no background, no text in the generated art",
+    "tuxedo and grey share identical poses and timing"
   ]
 }

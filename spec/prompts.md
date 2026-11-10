@@ -138,3 +138,39 @@ Same cat as the attached reference. Keep the tail raised and slightly curved, ex
 the reference — do not curl it over the back. Same head width, same ear size, same leg length.
 Change only the fur colour to #394a50 / #577277 / #819796, keeping the white muzzle and paws.
 ```
+
+---
+
+# Step 0 — the character reference (generate this before any row)
+
+One image, three views, flat background. Approve it, then attach it to every row prompt as
+the identity reference. Everything downstream inherits this drawing.
+
+<prompt>
+Pixel art character reference, 16-bit style, 1 px dark outline, flat colour fills, 2-step
+shading, no anti-aliasing, no gradients, no shadows, no texture.
+
+ONE character shown three times, same scale, feet on one shared baseline, chunky tuxedo cat:
+black coat #090a14 with #151d28 shading, white bib, white muzzle, white paw tips #ebede9 with
+#c7cfcc shading, amber eyes #e8c170, small pink nose, small triangular ears.
+
+Proportions: oversized round head about one third of the body length, short legs, heavy paws,
+compact barrel body, thick tail held up and slightly curved.
+
+Views left to right:
+1 side profile facing right, standing neutral — this is the gameplay view
+2 three-quarter front, standing neutral
+3 front view, sitting, tail curled around the paws
+
+Flat cream background #e7d5b3 edge to edge. No text, no labels, no grid, no boxes, no numbers,
+no second character, no props, no ground shadow, no vignette.
+</prompt>
+
+## Approve on these three things
+
+1. **Silhouette** — shrink it to 66 px tall in your head. If the head stops reading as a head,
+   reject it before it multiplies into 28 frames.
+2. **Markings** — black saddle, white bib, white paws. If the bib or a paw tip is missing in one
+   view, the rows will drift.
+3. **Tail carriage** — up and slightly curved, in all three views. A curled-over-the-back tail is
+   what made the grey variant a different cat.

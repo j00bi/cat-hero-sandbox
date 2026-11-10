@@ -7,10 +7,19 @@ one cushion to get home to — currently inside a giant robot vacuum. No depende
 
 ## Play
 
+**Public:** https://j00bi.github.io/cat-hero/ — share this link, works on phones.
+
+Locally:
+
 ```bash
 cd ~/projects/cat-hero
-python3 -m http.server 8123
-# open http://localhost:8123
+python3 serve.py          # http://127.0.0.1:8891
+```
+
+Publish an update (builds the itch zip and pushes to Pages):
+
+```bash
+tools/publish.sh          # -> https://j00bi.github.io/cat-hero/
 ```
 
 `file://` will not work — the game fetches `assets/cat-atlas.json`.

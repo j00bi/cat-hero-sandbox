@@ -12,24 +12,24 @@ const COYOTE = 0.09, JUMP_BUF = 0.12;
    Values sampled from the running game with PIL (see DESIGN.md). */
 const C = {
   // world
-  skyTop: "#5BA8E5", skyMid: "#8CC8F0", skyLow: "#C6E6FA",
-  mountFar: "#2E5A8A", mountMid: "#4A7A9E", mountHi: "#7FA8C8",
-  forest: "#2E7D32", forestDark: "#1F5A24", forestHi: "#4CAF50",
-  grass: "#4CAF50", grassHi: "#81C784", grassDark: "#2E7D32",
-  dirt: "#5D4037", dirtDark: "#3E2723", dirtHi: "#795548",
-  water: "#3B7EC4", waterDeep: "#2A5E96", waterHi: "#8CC8F0",
-  stone: "#A1887F", stoneDark: "#7E675F", roof: "#D32F2F", roofDark: "#9E1F1F",
+  skyTop: "#4F8FBA", skyMid: "#73BED3", skyLow: "#A4DDDB",
+  mountFar: "#253A5E", mountMid: "#3C5E8B", mountHi: "#4F8FBA",
+  forest: "#25562E", forestDark: "#19332D", forestHi: "#468232",
+  grass: "#468232", grassHi: "#75A743", grassDark: "#25562E",
+  dirt: "#4D2B32", dirtDark: "#341C27", dirtHi: "#7A4841",
+  water: "#3C5E8B", waterDeep: "#253A5E", waterHi: "#73BED3",
+  stone: "#AD7757", stoneDark: "#7A4841", roof: "#A53030", roofDark: "#752438",
   // ink + paper
-  ink: "#1B1410", paper: "#F4E7C8", paperShade: "#E0CFA6", paperEdge: "#B99C6B",
+  ink: "#090A14", paper: "#E7D5B3", paperShade: "#D7B594", paperEdge: "#C09473",
   // accents
-  gold: "#FFEB3B", goldWarm: "#F2C14E", goldDeep: "#B9852A", red: "#E53935", redDeep: "#C2452F",
+  gold: "#E8C170", goldWarm: "#DE9E41", goldDeep: "#BE772B", red: "#A53030", redDeep: "#752438",
   // text
-  white: "#FFFFFF", textWarm: "#FFF8D6", textSand: "#E8DCC0", textDim: "rgba(255,255,255,0.65)",
+  white: "#EBEDE9", textWarm: "#E7D5B3", textSand: "#D7B594", textDim: "rgba(235,237,233,0.66)",
   // surfaces
-  panel: "rgba(26,20,14,0.82)", scrim: "rgba(20,16,13,0.72)",
+  panel: "rgba(16,20,31,0.84)", scrim: "rgba(9,10,20,0.76)",
   // boss
-  bossShell: "#3A3630", bossShellHi: "#5A5348", bossRim: "#8E8271",
-  bossBrush: "#6B5A44", bossEye: "#8CD9F2", bossWake: "#F6E7C8", bossSpark: "#C8A46A",
+  bossShell: "#394A50", bossShellHi: "#577277", bossRim: "#819796",
+  bossBrush: "#4D2B32", bossEye: "#73BED3", bossWake: "#E7D5B3", bossSpark: "#DE9E41",
 };
 
 const canvas = document.getElementById("game");
@@ -90,7 +90,7 @@ const FONT = {
 
 function textWidth(str, s) { return str.length * 6 * s - s; }
 
-function text(str, x, y, s = 2, color = "#1b1410", align = "left") {
+function text(str, x, y, s = 2, color = "#10141F", align = "left") {
   str = String(str).toUpperCase();
   let cx = align === "center" ? x - textWidth(str, s) / 2
         : align === "right" ? x - textWidth(str, s) : x;
@@ -549,7 +549,7 @@ function hurt(fell) {
   state.lives--;
   state.shake = 12;
   sfx.hit();
-  burst(p.x + p.w / 2, p.y + p.h / 2, 14, "#c2452f");
+  burst(p.x + p.w / 2, p.y + p.h / 2, 14, "#CF573C");
   if (state.lives <= 0) {
     p.dead = true; state.mode = "gameover"; state.best = Math.max(state.best, state.coins);
     setTimeout(() => { }, 0);
@@ -577,7 +577,7 @@ function burst(x, y, n, color) {
 function dust(x, y, n) {
   for (let i = 0; i < n; i++) {
     world.particles.push({ x: x + (Math.random() - 0.5) * 20, y, vx: (Math.random() - 0.5) * 60,
-      vy: -20 - Math.random() * 40, life: 0.35, max: 0.35, c: "#b9a686", s: 3 });
+      vy: -20 - Math.random() * 40, life: 0.35, max: 0.35, c: "#C09473", s: 3 });
   }
 }
 
@@ -744,7 +744,7 @@ function killBoss() {
   b.dead = true; b.deadT = 0; b.hp = 0;
   state.shake = 16;
   sfx.bossDie();
-  burst(b.x + b.w / 2, b.y + b.h / 2, 40, "#8E7B5E");
+  burst(b.x + b.w / 2, b.y + b.h / 2, 40, "#AD7757");
   burst(b.x + b.w / 2, b.y + b.h / 2, 24, C.bossSpark);
 }
 
@@ -814,7 +814,7 @@ function updateBoss(dt) {
         if (b.hp <= 0) killBoss();
       } else {
         p.vy = -440; p.invuln = 0.25; sfx.clank();
-        burst(p.x + p.w / 2, p.y + p.h, 6, "#9E8B6B");
+        burst(p.x + p.w / 2, p.y + p.h, 6, "#AD7757");
       }
     } else {
       hurt(false);
@@ -824,7 +824,7 @@ function updateBoss(dt) {
 
 function killEnemy(e, knock) {
   e.alive = false; e.squash = 0.25;
-  burst(e.x + e.w / 2, e.y + e.h / 2, 12, "#8a7c6a");
+  burst(e.x + e.w / 2, e.y + e.h / 2, 12, "#AD7757");
   if (knock) { /* no body physics, just particles */ }
 }
 
@@ -844,7 +844,7 @@ function cloud(x, y, s) {
   ctx.fillRect(x, y + 10 * s, 52 * s, 12 * s);
   ctx.fillRect(x + 8 * s, y + 3 * s, 34 * s, 9 * s);
   ctx.fillRect(x + 18 * s, y - 4 * s, 18 * s, 8 * s);
-  ctx.fillStyle = "#DCEFFB";
+  ctx.fillStyle = "#EBEDE9";
   ctx.fillRect(x, y + 22 * s, 52 * s, 4 * s);
 }
 
@@ -937,7 +937,7 @@ function drawWater() {
     ctx.fillRect(Math.round(x), top + 26 + ((i * 53) % 30), 16, 2);
   }
   // shoreline
-  ctx.fillStyle = "#D9C9A3";
+  ctx.fillStyle = "#E7D5B3";
   for (let i = 0; i < 20; i++) {
     const x = ((i * 120 - cam * 0.7) % 2400 + 2400) % 2400 - 100;
     ctx.fillRect(Math.round(x), top - 2, 26, 3);
@@ -946,9 +946,9 @@ function drawWater() {
 
 function drawTree(x, groundY, s = 1) {
   const h = 96 * s;
-  ctx.fillStyle = "#6D4C41";
+  ctx.fillStyle = "#7A4841";
   ctx.fillRect(x - 7 * s, groundY - h * 0.52, 14 * s, h * 0.52);
-  ctx.fillStyle = "#4E342E";
+  ctx.fillStyle = "#4D2B32";
   ctx.fillRect(x + 2 * s, groundY - h * 0.52, 4 * s, h * 0.52);
   const cy = groundY - h * 0.72;
   ctx.fillStyle = C.forestDark;
@@ -972,14 +972,14 @@ function drawBush(x, groundY) {
 }
 
 function drawSign(x, groundY) {
-  ctx.fillStyle = "#6D4C41";
+  ctx.fillStyle = "#7A4841";
   ctx.fillRect(x - 3, groundY - 46, 7, 46);
-  ctx.fillStyle = "#8D6E63";
+  ctx.fillStyle = "#AD7757";
   ctx.fillRect(x - 30, groundY - 66, 64, 26);
-  ctx.fillStyle = "#5D4037";
+  ctx.fillStyle = "#4D2B32";
   ctx.fillRect(x - 30, groundY - 66, 64, 3);
-  text("GO!", x + 2, groundY - 60, 2, "#FFEB3B", "center");
-  ctx.fillStyle = "#FFEB3B";
+  text("GO!", x + 2, groundY - 60, 2, "#E8C170", "center");
+  ctx.fillStyle = "#E8C170";
   ctx.fillRect(x + 20, groundY - 54, 8, 3);
 }
 
@@ -1052,17 +1052,17 @@ function drawPlatforms() {
     ctx.fillStyle = "rgba(8,18,26,0.20)";
     ctx.fillRect(x + 4, y + q.h + 2, q.w - 8, 5);
 
-    ctx.fillStyle = "#7B5E3B";
+    ctx.fillStyle = "#7A4841";
     ctx.fillRect(x, y, q.w, q.h);
-    ctx.fillStyle = "#5B4329";
+    ctx.fillStyle = "#602C2C";
     ctx.fillRect(x, y + q.h - 5, q.w, 5);
     ctx.fillStyle = C.bossSpark;
     ctx.fillRect(x, y, q.w, 4);
 
-    ctx.fillStyle = "#3E2E1C";
+    ctx.fillStyle = "#341C27";
     for (let px = 8; px < q.w - 6; px += 18) ctx.fillRect(x + px, y + 7, 3, 3);
 
-    ctx.fillStyle = "#9E8B6B";
+    ctx.fillStyle = "#AD7757";
     ctx.fillRect(x - 2, y, 4, q.h);
     ctx.fillRect(x + q.w - 2, y, 4, q.h);
   }
@@ -1073,19 +1073,19 @@ function drawCoin(c) {
   const x = Math.round(c.x - world.cam);
   const y = Math.round(c.y + bob);
   // little fish: body, tail, fin, eye
-  ctx.fillStyle = "#B71C1C";
+  ctx.fillStyle = "#A53030";
   ctx.fillRect(x - 10, y - 5, 18, 10);
   ctx.fillRect(x - 15, y - 8, 6, 7);
   ctx.fillRect(x - 15, y + 1, 6, 7);
   ctx.fillStyle = C.red;
   ctx.fillRect(x - 9, y - 6, 17, 9);
-  ctx.fillStyle = "#FF8A80";
+  ctx.fillStyle = "#DF84A5";
   ctx.fillRect(x - 7, y - 4, 12, 3);
   ctx.fillStyle = C.paper;
   ctx.fillRect(x + 1, y - 4, 3, 3);
   ctx.fillStyle = C.ink;
   ctx.fillRect(x + 2, y - 3, 2, 2);
-  ctx.fillStyle = "#B71C1C";
+  ctx.fillStyle = "#A53030";
   ctx.fillRect(x - 6, y + 3, 8, 2);
   // sparkle
   ctx.fillStyle = "rgba(255,255,255,0.75)";
@@ -1097,7 +1097,7 @@ function drawEnemy(e) {
   const x = Math.round(e.x - world.cam), y = Math.round(e.y);
   if (!e.alive) {
     if (e.squash > 0) {
-      ctx.fillStyle = "#7A4B3A";
+      ctx.fillStyle = "#7A4841";
       ctx.fillRect(x + 4, y + e.h - 8, e.w - 8, 8);
       ctx.fillStyle = C.gold;
       ctx.fillRect(x + 8, y + e.h - 5, 6, 3);
@@ -1106,20 +1106,20 @@ function drawEnemy(e) {
   }
   const wob = Math.sin(e.t * 8) * 1.5;
   // bird body
-  ctx.fillStyle = "#8E2A20";
+  ctx.fillStyle = "#A53030";
   ctx.beginPath(); ctx.ellipse(x + e.w / 2, y + e.h * 0.55, 17, 13, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = "#C0392B";
+  ctx.fillStyle = "#A53030";
   ctx.beginPath(); ctx.ellipse(x + e.w / 2, y + e.h * 0.5, 15, 11, 0, 0, 7); ctx.fill();
   // belly
-  ctx.fillStyle = "#F5D6A0";
+  ctx.fillStyle = "#E7D5B3";
   ctx.beginPath(); ctx.ellipse(x + e.w / 2 + 2, y + e.h * 0.66, 9, 6, 0, 0, 7); ctx.fill();
   // head
-  ctx.fillStyle = "#C0392B";
+  ctx.fillStyle = "#A53030";
   ctx.beginPath(); ctx.arc(x + e.w / 2 + 8, y + e.h * 0.34 + wob, 8, 0, 7); ctx.fill();
   // beak
   ctx.fillStyle = C.gold;
   ctx.fillRect(x + e.w / 2 + 15, y + e.h * 0.33 + wob, 7, 4);
-  ctx.fillStyle = "#E6A700";
+  ctx.fillStyle = "#DE9E41";
   ctx.fillRect(x + e.w / 2 + 15, y + e.h * 0.38 + wob, 6, 2);
   // eye
   ctx.fillStyle = C.paper;
@@ -1127,10 +1127,10 @@ function drawEnemy(e) {
   ctx.fillStyle = C.ink;
   ctx.fillRect(x + e.w / 2 + 9, y + e.h * 0.31 + wob, 2, 2);
   // wing
-  ctx.fillStyle = "#7B2118";
+  ctx.fillStyle = "#752438";
   ctx.beginPath(); ctx.ellipse(x + e.w / 2 - 5, y + e.h * 0.55, 9, 5, -0.3, 0, 7); ctx.fill();
   // feet
-  ctx.fillStyle = "#E6A700";
+  ctx.fillStyle = "#DE9E41";
   ctx.fillRect(x + e.w / 2 - 2, y + e.h - 4, 3, 4);
   ctx.fillRect(x + e.w / 2 + 7, y + e.h - 4, 3, 4);
 }
@@ -1166,26 +1166,26 @@ function drawGoal() {
 
   // door
   const dw = 42, dh = 56;
-  ctx.fillStyle = "#2E1B12";
+  ctx.fillStyle = "#341C27";
   ctx.fillRect(x - dw / 2, y - dh, dw, dh);
-  ctx.fillStyle = "#5D4037";
+  ctx.fillStyle = "#4D2B32";
   ctx.fillRect(x - dw / 2 + 3, y - dh + 3, dw - 6, dh - 3);
   ctx.fillStyle = C.gold;
   ctx.fillRect(x + dw / 2 - 9, y - dh / 2, 3, 3);
 
   // paw print on the door
-  ctx.fillStyle = "#E8DCC0";
+  ctx.fillStyle = "#D7B594";
   ctx.beginPath(); ctx.ellipse(x, y - 26, 6, 5, 0, 0, 7); ctx.fill();
   for (const [dx, dy] of [[-7, -8], [-2, -11], [4, -11], [8, -7]]) {
     ctx.beginPath(); ctx.arc(x + dx, y - 26 + dy, 2.4, 0, 7); ctx.fill();
   }
 
   // GOAL plaque
-  ctx.fillStyle = "#2E1B12";
+  ctx.fillStyle = "#341C27";
   ctx.fillRect(x - 34, y0 + 8, 68, 22);
   ctx.fillStyle = C.gold;
   ctx.fillRect(x - 32, y0 + 10, 64, 18);
-  text("GOAL", x, y0 + 14, 2, "#2E1B12", "center");
+  text("GOAL", x, y0 + 14, 2, "#341C27", "center");
 
   // sleeping cat waiting by the door
   drawSleepingCat(x - 96, y);
@@ -1218,7 +1218,7 @@ function drawBoss() {
   ctx.beginPath(); ctx.ellipse(cx, y + b.h - 2, b.w * 0.48, 9, 0, 0, 7); ctx.fill();
 
   if (b.dead) {
-    ctx.fillStyle = "#4A4238";
+    ctx.fillStyle = "#4D2B32";
     ctx.beginPath(); ctx.ellipse(cx, cy + 12, b.w * 0.46, b.h * 0.26, 0, 0, 7); ctx.fill();
     ctx.fillStyle = C.bossSpark;
     ctx.fillRect(cx - 10, cy + 2, 20, 6);
@@ -1242,21 +1242,21 @@ function drawBoss() {
   // shell
   ctx.fillStyle = b.flash > 0 ? C.bossWake : C.bossShell;
   ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = b.flash > 0 ? "#FFF8E7" : C.bossShellHi;
+  ctx.fillStyle = b.flash > 0 ? "#EBEDE9" : C.bossShellHi;
   ctx.beginPath(); ctx.ellipse(cx, cy - 7, b.w * 0.38, b.h * 0.30, 0, 0, 7); ctx.fill();
   ctx.strokeStyle = C.bossRim; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.stroke();
 
   // the cushion it swallowed, visible through the intake
-  ctx.fillStyle = "#C2452F";
+  ctx.fillStyle = "#752438";
   ctx.fillRect(cx - 13, cy + 4, 26, 8);
-  ctx.fillStyle = "#E8B44A";
+  ctx.fillStyle = "#DE9E41";
   ctx.fillRect(cx - 13, cy + 4, 26, 2);
 
   // eye
   const angry = b.state === "charge" || b.state === "telegraph";
   const ex = cx + b.dir * 12;
-  ctx.fillStyle = angry ? "#E53935" : C.bossEye;
+  ctx.fillStyle = angry ? "#A53030" : C.bossEye;
   ctx.beginPath(); ctx.arc(ex, cy - 10, angry ? 7 : 5, 0, 7); ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.fillRect(ex - 2, cy - 13, 3, 3);
@@ -1305,7 +1305,7 @@ function drawPlayer() {
 const PLAY_BAND = { y0: 400, y1: 506 };   // gameplay owns this strip; HUD never enters
 
 function card(x, y, w, h, r = 12) {
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillStyle = "rgba(9,10,20,0.28)";
   ctx.beginPath();
   ctx.moveTo(x + 6 + r, y + 8);
   ctx.arcTo(x + 6 + w, y + 8, x + 6 + w, y + 8 + h, r);
@@ -1361,7 +1361,7 @@ function keycap(label, x, y, w, s = 1) {
 }
 
 function fishGlyph(x, y) {
-  ctx.fillStyle = "#B71C1C";
+  ctx.fillStyle = "#A53030";
   ctx.fillRect(x, y + 2, 16, 8);
   ctx.fillRect(x - 5, y, 5, 5);
   ctx.fillRect(x - 5, y + 7, 5, 5);
@@ -1426,7 +1426,7 @@ function drawHUD() {
     }
     if (world.boss.state === "stun") {
       ctx.globalAlpha = 0.6 + Math.sin(state.t * 12) * 0.4;
-      text("STOMP IT!", W / 2, 96, 2, "#FFEB3B", "center");
+      text("STOMP IT!", W / 2, 96, 2, "#E8C170", "center");
       ctx.globalAlpha = 1;
     }
   }
@@ -1669,8 +1669,8 @@ fetch("assets/cat-atlas.json").then((r) => r.json()).then((j) => {
   atlasImg.onload = boot;
   atlasImg.src = "assets/cat-atlas.png";
 }).catch((e) => {
-  ctx.fillStyle = "#f0e6c8"; ctx.fillRect(0, 0, W, H);
-  text("ATLAS FAILED TO LOAD", W / 2, H / 2, 3, "#c2452f", "center");
+  ctx.fillStyle = "#E7D5B3"; ctx.fillRect(0, 0, W, H);
+  text("ATLAS FAILED TO LOAD", W / 2, H / 2, 3, "#CF573C", "center");
   console.error(e);
 });
 

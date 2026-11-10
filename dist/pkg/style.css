@@ -1,0 +1,19 @@
+:root{--ink:#1b1410;--paper:#f0e6c8;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#14100d;color:var(--paper);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;background:#f0e6c8;image-rendering:pixelated;image-rendering:crisp-edges;
+  box-shadow:0 0 0 4px #14100d,0 0 0 8px #2b2118,0 22px 60px rgba(0,0,0,.6);border-radius:2px}
+#hint{position:fixed;left:0;right:0;bottom:8px;text-align:center;font-size:12px;letter-spacing:.08em;
+  color:#e8f2e4;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;opacity:.9;transition:opacity .6s}
+body.playing #hint{opacity:0}
+#touch{position:fixed;inset:auto 0 0 0;height:38%;display:none;justify-content:space-between;
+  padding:0 18px 18px;pointer-events:none}
+#touch .pad{display:flex;gap:14px;align-items:flex-end;pointer-events:none}
+#touch button{pointer-events:auto;width:74px;height:74px;border-radius:50%;border:3px solid #f0e6c8;
+  background:rgba(27,20,16,.55);color:#f0e6c8;font:700 13px ui-monospace,monospace;letter-spacing:.06em;
+  backdrop-filter:blur(2px);touch-action:none;-webkit-user-select:none;user-select:none}
+#touch button:active{background:rgba(240,230,200,.9);color:#1b1410;transform:scale(.96)}
+#touch button.bat{width:64px;height:64px;font-size:11px}
+@media (pointer:coarse){#touch{display:flex} #hint{display:none}}

@@ -1,4 +1,9 @@
-# CAT HERO
+# CAT HERO — restyle fork
+
+> Design pass on top of `../cat-hero`: paper-card screens, a warm single-source palette,
+> and the control legend moved out of the play band. Spec and rationale: `DESIGN.md`.
+> Live: https://j00bi.github.io/cat-hero-restyle/
+> Gates: `tools/design.mjs`, `tools/palette_check.py`, plus the five gameplay suites.
 
 A small pixel platformer built around the **CAT HERO** sprite sheet. Seven rooms, one cat,
 one cushion to get home to — currently inside a giant robot vacuum. No dependencies, no build step — plain Canvas 2D.
@@ -84,6 +89,8 @@ Output: `assets/cat-atlas.png` + `assets/cat-atlas.json`
 Not eyeballed — measured. All three scripts run against a live Chromium.
 
 ```bash
+node tools/design.mjs      # HUD never enters the play band
+python3 tools/palette_check.py  # card/panel contrast + band sampling
 node tools/test.mjs        # 14 gameplay assertions
 node tools/platforms.mjs   # planks travel + carry the cat
 node tools/boss.mjs        # bait, stun, stomp x3, cushion returns

@@ -8,7 +8,10 @@ const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL
 const COYOTE = 0.09, JUMP_BUF = 0.12;
 
 /* meadow palette taken from the reference mockup */
+/* One palette block. Every draw call reads from here — no colour literals below.
+   Values sampled from the running game with PIL (see DESIGN.md). */
 const C = {
+  // world
   skyTop: "#5BA8E5", skyMid: "#8CC8F0", skyLow: "#C6E6FA",
   mountFar: "#2E5A8A", mountMid: "#4A7A9E", mountHi: "#7FA8C8",
   forest: "#2E7D32", forestDark: "#1F5A24", forestHi: "#4CAF50",
@@ -16,8 +19,17 @@ const C = {
   dirt: "#5D4037", dirtDark: "#3E2723", dirtHi: "#795548",
   water: "#3B7EC4", waterDeep: "#2A5E96", waterHi: "#8CC8F0",
   stone: "#A1887F", stoneDark: "#7E675F", roof: "#D32F2F", roofDark: "#9E1F1F",
-  ink: "#212121", paper: "#FFFFFF", gold: "#FFEB3B", red: "#E53935",
-  panel: "rgba(16,24,20,0.78)",
+  // ink + paper
+  ink: "#1B1410", paper: "#F4E7C8", paperShade: "#E0CFA6", paperEdge: "#B99C6B",
+  // accents
+  gold: "#FFEB3B", goldWarm: "#F2C14E", goldDeep: "#B9852A", red: "#E53935", redDeep: "#C2452F",
+  // text
+  white: "#FFFFFF", textWarm: "#FFF8D6", textSand: "#E8DCC0", textDim: "rgba(255,255,255,0.65)",
+  // surfaces
+  panel: "rgba(26,20,14,0.82)", scrim: "rgba(20,16,13,0.72)",
+  // boss
+  bossShell: "#3A3630", bossShellHi: "#5A5348", bossRim: "#8E8271",
+  bossBrush: "#6B5A44", bossEye: "#8CD9F2", bossWake: "#F6E7C8", bossSpark: "#C8A46A",
 };
 
 const canvas = document.getElementById("game");
@@ -102,6 +114,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
+  hudRects: [],
 };
 
 const keys = Object.create(null);
@@ -690,7 +703,7 @@ function update(dt) {
     if (overlaps(rect(p.x, p.y, p.w, p.h), rect(c.x - 12, c.y - 12, 24, 24))) {
       c.got = true; state.coins++; state.fish++; world.got++;
       sfx.coin();
-      burst(c.x, c.y, 8, "#f2c14e");
+      burst(c.x, c.y, 8, C.goldWarm);
     }
   }
 
@@ -700,7 +713,7 @@ function update(dt) {
   // goal
   if (world.goal && overlaps(rect(p.x, p.y, p.w, p.h), rect(world.goal.x - 66, world.goal.y - 92, 132, 92))) {
     state.mode = "clear"; sfx.win(); state.shake = 6;
-    burst(world.goal.x, world.goal.y - 40, 30, "#f2c14e");
+    burst(world.goal.x, world.goal.y - 40, 30, C.goldWarm);
   }
 
   // camera
@@ -732,7 +745,7 @@ function killBoss() {
   state.shake = 16;
   sfx.bossDie();
   burst(b.x + b.w / 2, b.y + b.h / 2, 40, "#8E7B5E");
-  burst(b.x + b.w / 2, b.y + b.h / 2, 24, "#C8A46A");
+  burst(b.x + b.w / 2, b.y + b.h / 2, 24, C.bossSpark);
 }
 
 function updateBoss(dt) {
@@ -744,7 +757,7 @@ function updateBoss(dt) {
     b.deadT += dt;
     if (b.deadT > 0.9 && !world.goal) {
       world.goal = { x: world.goalDef.x, y: world.goalDef.y, t: 0 };
-      burst(world.goalDef.x, world.goalDef.y - 50, 26, "#f2c14e");
+      burst(world.goalDef.x, world.goalDef.y - 50, 26, C.goldWarm);
     }
     return;
   }
@@ -797,7 +810,7 @@ function updateBoss(dt) {
         p.vy = -540; p.onGround = false;
         p.invuln = 0.4;   // stay inside the shell for a frame while bouncing out
         state.shake = 12; sfx.bossHit();
-        burst(b.x + b.w / 2, b.y + 10, 18, "#C8A46A");
+        burst(b.x + b.w / 2, b.y + 10, 18, C.bossSpark);
         if (b.hp <= 0) killBoss();
       } else {
         p.vy = -440; p.invuln = 0.25; sfx.clank();
@@ -827,7 +840,7 @@ function updateParticles(dt) {
 
 /* ------------------------------------------------------------------ draw */
 function cloud(x, y, s) {
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = C.white;
   ctx.fillRect(x, y + 10 * s, 52 * s, 12 * s);
   ctx.fillRect(x + 8 * s, y + 3 * s, 34 * s, 9 * s);
   ctx.fillRect(x + 18 * s, y - 4 * s, 18 * s, 8 * s);
@@ -1043,7 +1056,7 @@ function drawPlatforms() {
     ctx.fillRect(x, y, q.w, q.h);
     ctx.fillStyle = "#5B4329";
     ctx.fillRect(x, y + q.h - 5, q.w, 5);
-    ctx.fillStyle = "#C8A46A";
+    ctx.fillStyle = C.bossSpark;
     ctx.fillRect(x, y, q.w, 4);
 
     ctx.fillStyle = "#3E2E1C";
@@ -1190,7 +1203,7 @@ function drawSleepingCat(baseX, groundY) {
     const zx = baseX + 22 + p * 26;
     const zy = groundY - 46 - p * 46;
     ctx.globalAlpha = Math.sin(p * Math.PI) * 0.85;
-    text("Z", zx, zy, 1 + Math.floor(p * 2), "#FFFFFF");
+    text("Z", zx, zy, 1 + Math.floor(p * 2), C.white);
     ctx.globalAlpha = 1;
   }
 }
@@ -1207,7 +1220,7 @@ function drawBoss() {
   if (b.dead) {
     ctx.fillStyle = "#4A4238";
     ctx.beginPath(); ctx.ellipse(cx, cy + 12, b.w * 0.46, b.h * 0.26, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#C8A46A";
+    ctx.fillStyle = C.bossSpark;
     ctx.fillRect(cx - 10, cy + 2, 20, 6);
     for (let i = 0; i < 3; i++) {
       ctx.fillStyle = "rgba(180,170,150,0.5)";
@@ -1217,7 +1230,7 @@ function drawBoss() {
   }
 
   // spinning brush skirt
-  ctx.strokeStyle = "#6B5A44"; ctx.lineWidth = 3;
+  ctx.strokeStyle = C.bossBrush; ctx.lineWidth = 3;
   for (let i = 0; i < 10; i++) {
     const a = b.spin + i * (Math.PI / 5);
     ctx.beginPath();
@@ -1227,11 +1240,11 @@ function drawBoss() {
   }
 
   // shell
-  ctx.fillStyle = b.flash > 0 ? "#F6E7C8" : "#3A3630";
+  ctx.fillStyle = b.flash > 0 ? C.bossWake : C.bossShell;
   ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = b.flash > 0 ? "#FFF8E7" : "#5A5348";
+  ctx.fillStyle = b.flash > 0 ? "#FFF8E7" : C.bossShellHi;
   ctx.beginPath(); ctx.ellipse(cx, cy - 7, b.w * 0.38, b.h * 0.30, 0, 0, 7); ctx.fill();
-  ctx.strokeStyle = "#8E8271"; ctx.lineWidth = 2;
+  ctx.strokeStyle = C.bossRim; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.46, b.h * 0.42, 0, 0, 7); ctx.stroke();
 
   // the cushion it swallowed, visible through the intake
@@ -1243,7 +1256,7 @@ function drawBoss() {
   // eye
   const angry = b.state === "charge" || b.state === "telegraph";
   const ex = cx + b.dir * 12;
-  ctx.fillStyle = angry ? "#E53935" : "#8CD9F2";
+  ctx.fillStyle = angry ? "#E53935" : C.bossEye;
   ctx.beginPath(); ctx.arc(ex, cy - 10, angry ? 7 : 5, 0, 7); ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.fillRect(ex - 2, cy - 13, 3, 3);
@@ -1289,6 +1302,38 @@ function drawPlayer() {
   }
 }
 
+const PLAY_BAND = { y0: 400, y1: 506 };   // gameplay owns this strip; HUD never enters
+
+function card(x, y, w, h, r = 12) {
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.beginPath();
+  ctx.moveTo(x + 6 + r, y + 8);
+  ctx.arcTo(x + 6 + w, y + 8, x + 6 + w, y + 8 + h, r);
+  ctx.arcTo(x + 6 + w, y + 8 + h, x + 6, y + 8 + h, r);
+  ctx.arcTo(x + 6, y + 8 + h, x + 6, y + 8, r);
+  ctx.arcTo(x + 6, y + 8, x + 6 + w, y + 8, r);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = C.paper;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = C.ink;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.strokeStyle = C.paperEdge;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 5.5, y + 5.5, w - 11, h - 11);
+}
+
 function panel(x, y, w, h, r = 10) {
   ctx.fillStyle = C.panel;
   ctx.beginPath();
@@ -1312,7 +1357,7 @@ function keycap(label, x, y, w, s = 1) {
   ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 15);
-  text(label, x + w / 2, y + 4, s, "#FFFFFF", "center");
+  text(label, x + w / 2, y + 4, s, C.white, "center");
 }
 
 function fishGlyph(x, y) {
@@ -1328,9 +1373,11 @@ function fishGlyph(x, y) {
 
 function drawHUD() {
   const L = LEVELS[state.level];
+  state.hudRects.length = 0;
+  const hud = (x, y, w, h, r) => { state.hudRects.push({ x, y, w, h }); panel(x, y, w, h, r); };
 
   // ---- top-left status ----
-  panel(16, 14, 262, 50);
+  hud(16, 14, 262, 50);
   // portrait
   ctx.fillStyle = "rgba(255,255,255,0.12)";
   ctx.fillRect(24, 20, 38, 38);
@@ -1358,17 +1405,17 @@ function drawHUD() {
 
   // fish count
   fishGlyph(158, 27);
-  text(`X ${state.coins}/${state.totalCoins}`, 182, 26, 2, "#FFFFFF");
+  text(`X ${state.coins}/${state.totalCoins}`, 182, 26, 2, C.white);
 
   // ---- top-right world plate ----
-  panel(W - 262, 14, 246, 50);
+  hud(W - 262, 14, 246, 50);
   text(`WORLD ${L.world}`, W - 32, 24, 1, "rgba(255,255,255,0.7)", "right");
-  text(L.name, W - 32, 38, 2, "#FFFFFF", "right");
+  text(L.name, W - 32, 38, 2, C.white, "right");
 
   // ---- boss health ----
   if (world.boss && !world.boss.dead) {
     const bw = 300, bx = W / 2 - bw / 2;
-    panel(bx, 14, bw, 50);
+    hud(bx, 14, bw, 50);
     text("THE DUST KING", W / 2, 22, 1, "rgba(255,255,255,0.72)", "center");
     for (let i = 0; i < world.boss.maxHp; i++) {
       const on = i < world.boss.hp;
@@ -1385,29 +1432,36 @@ function drawHUD() {
   }
 
   // ---- first-room tutorial (top centre, clear of the play area) ----
-  if (state.level === 0 && state.t < 11) {
-    const fade = state.t > 9 ? Math.max(0, (11 - state.t) / 2) : 1;
+  if (state.level === 0 && state.t < 8) {
+    const fade = state.t > 6.5 ? Math.max(0, (8 - state.t) / 1.5) : 1;
     ctx.globalAlpha = fade;
-    panel(W / 2 - 250, 78, 500, 56);
-    text("HELP THE CAT REACH HOME!", W / 2, 92, 2, "#FFFFFF", "center");
+    hud(W / 2 - 250, 78, 500, 56);
+    text("HELP THE CAT REACH HOME!", W / 2, 92, 2, C.white, "center");
     text("COLLECT FISH, AVOID BIRDS, FIND THE GOAL.", W / 2, 116, 1, "rgba(255,255,255,0.78)", "center");
     ctx.globalAlpha = 1;
   }
 
-  // ---- control legend ----
-  panel(W - 296, H - 76, 280, 42);
-  keycap("<", W - 280, H - 64, 18);
-  keycap(">", W - 258, H - 64, 18);
-  text("MOVE", W - 232, H - 60, 1, "rgba(255,255,255,0.8)");
-  keycap("Z", W - 186, H - 64, 18);
-  text("JUMP", W - 164, H - 60, 1, "rgba(255,255,255,0.8)");
-  keycap("X", W - 120, H - 64, 18);
-  text("PAW", W - 98, H - 60, 1, "rgba(255,255,255,0.8)");
+  // Controls are not HUD: they live on the title card and in the pause card.
 
   if (paused) {
-    ctx.fillStyle = "rgba(8,16,24,0.6)"; ctx.fillRect(0, 0, W, H);
-    text("PAUSED", W / 2, H / 2 - 40, 5, "#FFFFFF", "center");
-    text("P TO RESUME", W / 2, H / 2 + 30, 2, "rgba(255,255,255,0.75)", "center");
+    ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
+    const cw = 360, ch = 250, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
+    card(cx, cy, cw, ch);
+    text("PAUSED", W / 2, cy + 26, 3, C.ink, "center");
+
+    const rows = [
+      ["<", ">", "MOVE"],
+      ["Z", "", "JUMP"],
+      ["X", "", "PAW SWIPE"],
+      ["M", "", "MUTE"],
+    ];
+    rows.forEach((r, i) => {
+      const ry = cy + 82 + i * 34;
+      keycap(r[0], cx + 54, ry, 18);
+      if (r[1]) keycap(r[1], cx + 76, ry, 18);
+      text(r[2], cx + 112, ry + 4, 1, C.ink);
+    });
+    text("P OR ESC TO RESUME", W / 2, cy + ch - 26, 1, C.paperEdge, "center");
   }
   if (state.muted) text("MUTED", W - 32, 74, 1, "rgba(255,255,255,0.6)", "right");
 }
@@ -1427,54 +1481,74 @@ function drawTitle() {
   drawBush(250, 470);
   drawBush(700, 470);
 
-  textShadow("CAT HERO", W / 2, 84, 9, "#FFFFFF", "center");
-  textShadow("A VERY SMALL ADVENTURE", W / 2, 172, 2, "#FFF8D6", "center");
+  // title card
+  card(180, 84, 600, 336);
+  text("CAT HERO", W / 2, 118, 6, C.ink, "center");
+  text("A VERY SMALL ADVENTURE", W / 2, 180, 2, C.goldDeep, "center");
+
+  ctx.fillStyle = C.paperShade;
+  ctx.fillRect(240, 202, 480, 2);
+
+  if (Math.sin(state.t * 4) > -0.3) text("PRESS ENTER OR TAP", W / 2, 226, 2, C.ink, "center");
 
   const set = state.setIndex === 0 ? "black" : "grey";
   const idle = ATLAS[set].idle;
   const f = idle[Math.floor(state.t * 6) % idle.length];
-  ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, W / 2 - f.w, 470 - f.h * 2, f.w * 2, f.h * 2);
+  ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, W / 2 - f.w * 1.1, 402 - f.h * 2.2, f.w * 2.2, f.h * 2.2);
 
-  const blink = Math.sin(state.t * 4) > -0.2;
-  if (blink) {
-    panel(W / 2 - 150, 236, 300, 46);
-    text("PRESS ENTER OR TAP", W / 2, 250, 2, "#FFFFFF", "center");
-  }
-  panel(W / 2 - 220, 296, 440, 34);
-  text("ARROWS MOVE   SPACE JUMP   J PAW", W / 2, 306, 2, "#FFF8D6", "center");
+  // controls live here, not in the play band
+  card(240, 436, 480, 42, 8);
+  text("ARROWS MOVE    Z JUMP    X PAW    P PAUSE", W / 2, 450, 1, C.ink, "center");
 }
 
 function drawSelect() {
   drawSky();
-  textShadow("CHOOSE YOUR HERO", W / 2, 58, 4, "#FFFFFF", "center");
+
   const opts = [
     { key: "black", label: "BLACK CAT", sub: "NIMBLE" },
     { key: "grey", label: "GREY CAT", sub: "STEADY" },
   ];
+
   opts.forEach((o, i) => {
-    const cx = W / 2 + (i === 0 ? -190 : 190);
+    const cx = W / 2 + (i === 0 ? -180 : 180);
     const sel = state.setIndex === i;
-    panel(cx - 140, 132, 280, 286, 14);
+    const lift = sel ? -8 : 0;
+    const cw = 268, ch = 344, x = cx - cw / 2, y = 112 + lift;
+
+    card(x, y, cw, ch);
     if (sel) {
-      ctx.strokeStyle = C.gold;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(cx - 140, 132, 280, 286);
+      ctx.strokeStyle = C.goldWarm;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x + 12, y);
+      ctx.arcTo(x + cw, y, x + cw, y + ch, 12);
+      ctx.arcTo(x + cw, y + ch, x, y + ch, 12);
+      ctx.arcTo(x, y + ch, x, y, 12);
+      ctx.arcTo(x, y, x + cw, y, 12);
+      ctx.closePath();
+      ctx.stroke();
+      text("*", cx, y - 34, 3, C.goldWarm, "center");
     }
 
     const frames = ATLAS[o.key].idle;
     const f = frames[Math.floor(state.t * 6) % frames.length];
-    ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, cx - f.w, 372 - f.h * 2, f.w * 2, f.h * 2);
-    text(o.label, cx, 386, 2, "#FFFFFF", "center");
-    text(o.sub, cx, 410, 1, "rgba(255,255,255,0.65)", "center");
-    if (sel) text("*", cx, 112, 3, C.gold, "center");
+    ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, cx - f.w, y + 232 - f.h * 2, f.w * 2, f.h * 2);
+
+    text(o.label, cx, y + 252, 2, C.ink, "center");
+    text(o.sub, cx, y + 286, 1, sel ? C.goldDeep : C.paperEdge, "center");
   });
-  textShadow("ARROWS OR TAP TO SWITCH   ENTER TO START", W / 2, 480, 1, "#FFF8D6", "center");
+
+  card(230, 478, 500, 40, 8);
+  text("ARROWS OR TAP TO SWITCH    ENTER TO START", W / 2, 492, 1, C.ink, "center");
 }
 
-function drawOverlayCard(title, sub, color) {
-  ctx.fillStyle = "rgba(20,16,13,0.72)"; ctx.fillRect(0, 0, W, H);
-  text(title, W / 2, H / 2 - 60, 6, color, "center");
-  if (sub) text(sub, W / 2, H / 2 + 30, 2, "#e8dcc0", "center");
+function drawOverlayCard(title, sub, color, stat) {
+  ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
+  const cw = 440, ch = stat ? 210 : 180, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
+  card(cx, cy, cw, ch);
+  text(title, W / 2, cy + 26, 4, color, "center");
+  if (stat) text(stat, W / 2, cy + 84, 2, C.ink, "center");
+  if (sub) text(sub, W / 2, cy + (stat ? 126 : 96), 1, C.paperEdge, "center");
 }
 
 function render() {
@@ -1511,27 +1585,28 @@ function render() {
   drawHUD();
 
   if (state.mode === "clear") {
-    drawOverlayCard("CLEAR!", `FISH ${state.coins}/${state.totalCoins}`, "#f2c14e");
-    text("ENTER FOR NEXT", W / 2, H / 2 + 80, 2, "#e8dcc0", "center");
+    drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
   }
   if (state.mode === "gameover") {
-    drawOverlayCard("GAME OVER", `FISH ${state.coins}`, "#c2452f");
-    text("ENTER TO TRY AGAIN", W / 2, H / 2 + 80, 2, "#e8dcc0", "center");
+    drawOverlayCard("GAME OVER", "ENTER TO TRY AGAIN", C.redDeep, `FISH ${state.coins}`);
   }
   if (state.mode === "win") {
     drawSky();
-    ctx.fillStyle = "rgba(8,16,24,0.55)"; ctx.fillRect(0, 0, W, H);
-    panel(W / 2 - 350, 70, 700, 400, 18);
-    text("HERO OF THE HOUSE", W / 2, 120, 5, "#FFFFFF", "center");
-    text(`ALL ${LEVELS.length} MEADOWS CLEARED`, W / 2, 200, 2, "rgba(255,255,255,0.8)", "center");
-    text(`FISH ${state.fish}`, W / 2, 246, 3, C.gold, "center");
+    ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
+    const cw = 580, ch = 392, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
+    card(cx, cy, cw, ch);
+    text("HOME AT LAST", W / 2, cy + 28, 4, C.ink, "center");
+    text("THE DUST KING IS BEATEN", W / 2, cy + 88, 1, C.paperEdge, "center");
+
     ["black", "grey"].forEach((set, i) => {
       const fr = ATLAS[set].idle;
       const f = fr[Math.floor(state.t * 5 + i) % fr.length];
-      const x = W / 2 + (i === 0 ? -150 : 90);
-      ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, x, 380 - f.h * 1.6, f.w * 1.6, f.h * 1.6);
+      const x = W / 2 + (i === 0 ? -150 : 60);
+      ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, x, cy + 132, f.w * 1.7, f.h * 1.7);
     });
-    text("ENTER TO PLAY AGAIN", W / 2, 430, 2, "#FFFFFF", "center");
+
+    text(`FISH ${state.fish}`, W / 2, cy + 300, 3, C.goldDeep, "center");
+    text("ENTER TO PLAY AGAIN", W / 2, cy + 348, 1, C.paperEdge, "center");
   }
 }
 

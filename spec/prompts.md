@@ -93,3 +93,48 @@ python3 tools/sprite_qc.py   out/tuxedo-walk-sheet.png
 
 Reject and regenerate anything that fails. A drifting strip that "looks close" is what makes a
 sheet unusable later.
+
+---
+
+# v2 — corrections after the first Gemini pass
+
+Observed failures: 6-frame rows instead of 8, walk/run frames that barely differ, motion blur,
+a stray trajectory arc in the jump row, black slash streaks drawn beside the paw, baked-in text
+("Action Action"), and the grey variant drawn as a different cat (tail curled over the back).
+
+## Add this to every prompt
+
+```
+exactly {N} cats, evenly spaced, touching neither each other nor the frame edge.
+Each frame must differ clearly from its neighbours — different leg positions, not a redraw.
+No motion blur, no speed lines, no ghosting, no trajectory arcs, no impact streaks,
+no shadows, no vignette, no gradient background, no text, no labels, no numbers.
+Flat single-colour background #e7d5b3, edge to edge.
+```
+
+## Walk — spell the legs out
+
+Pose names do not work; the model redraws the same standing cat. Describe each frame:
+
+```
+8 frames, side view facing right, identical cat in all 8:
+1 front-left paw forward and down, rear-right paw back and up
+2 body at its lowest, both front paws under the chest
+3 front-left paw under the body, rear-left lifting off
+4 body rising, front-right paw reaching forward
+5 front-right paw forward and down, rear-left paw back and up
+6 body lowest again, both front paws under the chest
+7 front-right under the body, rear-right lifting
+8 body rising, front-left paw reaching forward
+```
+
+Same trick for run (two frames fully airborne, legs extended fore and aft) and jump
+(crouch · launch, legs trailing · apex, legs tucked · descend, legs reaching).
+
+## Grey variant — pin the silhouette
+
+```
+Same cat as the attached reference. Keep the tail raised and slightly curved, exactly as in
+the reference — do not curl it over the back. Same head width, same ear size, same leg length.
+Change only the fur colour to #394a50 / #577277 / #819796, keeping the white muzzle and paws.
+```

@@ -383,3 +383,28 @@ standing, walking, open eyes, paws stretched out, ground line, text
 - the tail reaches past the hip
 - the cat isn't a compact oval
 - more than one pose among the four
+
+---
+
+# SLEEP CURL — finding: the tail cannot be edited out
+
+Zoomed to 7x and false-coloured the dark shades. The long tail is **drawn in the same fill
+colour as the body and fused to it** along the lower-left — it is not a separate shape, so it
+cannot be keyed, flood-filled or masked.
+
+Two attempted edits both failed:
+
+- **Straight mask cut** below the body outline (`y > 166`) — takes the belly and front paws with
+  it, because the tail overlaps them.
+- **Ellipse redraw** to close the rump — reads as a black ball pasted on the cat: no shading,
+  wrong outline weight, and it covers the white chest.
+
+## The fix is a prompt line, not an edit
+
+```
+TAIL: the tail is completely hidden behind the body — not visible at all in any frame.
+No tail shape, no tail tip, no arc along the back or around the body.
+```
+
+A curled bobtail cat genuinely shows no tail from the side, so this is the honest drawing.
+Regenerating with that line is cheaper and cleaner than retouching fused pixels.

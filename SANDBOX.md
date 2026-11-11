@@ -55,6 +55,37 @@ node tools/design.mjs      # HUD stays out of the play band
 `tools/playthrough.mjs` is the one that catches mechanics that accidentally make a room
 unfair — if a dumb bot holding right can't finish, a player will hit the same wall.
 
+## Charge → superpower (first slice)
+
+The cat builds a charge meter and spends it on a power.
+
+- **Gain:** stomp an enemy **+28**, collect a fish **+7**. Meter caps at 100.
+- **Spend:** at 100, press **`C`** to unleash **Thunder Pounce** — a 0.42 s lunge
+  (760 px/s), invulnerable, kills anything it passes through, and knocks a stunned Dust King
+  for one health. Charge resets to 0.
+- **Tell:** the meter under the hearts pulses cyan when full; the dash draws lightning arcs,
+  sparks and an afterimage trail.
+- **Tuning:** `state.chargeMax`, the `addCharge(28)` / `addCharge(7)` calls, and
+  `p.power = 0.42` / `p.vx = p.facing * 760` in `updatePower`.
+
+In the sandbox press **`F`** to fill the meter instantly, then **`C`**.
+
+### Where the next powers plug in
+
+`tryPower()` is the single entry point. Give it a `state.powerId` and branch:
+
+| Power | Effect | VFX source |
+|---|---|---|
+| Frost Nova | freeze all enemies 3 s | `pixelfx/fx/ice/*` |
+| Ember Burst | ring damage around the cat | `pixelfx/fx/fire/*` |
+| Arcane Shield | 2 s invulnerable + reflect | `pixelfx/fx/arcane/*` |
+| Chain Lightning | arcs jump between 3 enemies | `pixelfx/fx/lightning/*` |
+
+`pixelfx` is a Node ESM library (244 effects drawn from code). The browser build here has no
+bundler, so the current arcs are hand-drawn in `drawPowerFx()`. To use the real library,
+either vendor a single effect file and inline it, or add esbuild and import
+`pixelfx/fx/<cat>/<name>` — both are viable, the second keeps the gallery browsable.
+
 ## Physics sandbox ideas, cheapest first
 
 | Idea | Where | Cost |

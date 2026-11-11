@@ -114,7 +114,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
-  hudRects: [], idleT: 0,
+  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powers: 0,
 };
 
 /* ---------------------------------------------------------------- sandbox */
@@ -153,6 +153,7 @@ const sfx = {
   charge: () => beep(90, 0.45, "sawtooth", 0.10, 300),
   clank: () => beep(140, 0.12, "square", 0.10, 60),
   bossHit: () => { beep(160, 0.14, "square", 0.13, 70); setTimeout(() => beep(90, 0.2, "triangle", 0.10), 70); },
+  thunder: () => { beep(120, 0.22, "sawtooth", 0.14, 60); setTimeout(() => beep(700, 0.1, "square", 0.10, 180), 40); },
   bossDie: () => { [300, 240, 180, 120, 70].forEach((f, i) => setTimeout(() => beep(f, 0.22, "sawtooth", 0.11, f * 0.5), i * 130)); },
 };
 
@@ -174,6 +175,7 @@ addEventListener("keydown", (e) => {
     keys[k] = true;
   }
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
+  if (e.code === "KeyC") tryPower();
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
   if (DEV) {
@@ -190,6 +192,7 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
     if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
     if (e.code === "KeyR") loadLevel(state.level);
+    if (e.code === "KeyF") { state.charge = state.chargeMax; sfx.charge(); }
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
@@ -494,7 +497,7 @@ const LEVELS = [
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0,
 };
 
 function loadLevel(i) {
@@ -666,6 +669,7 @@ function update(dt) {
   }
   p.attack = Math.max(0, p.attack - dt);
 
+  updatePower(dt);
   p.vy = Math.min(MAXFALL, p.vy + GRAV * dt);
   movePlayer(dt);
   if (p.invuln > 0) p.invuln -= dt;
@@ -681,7 +685,8 @@ function update(dt) {
   else if (speed >= 20 || !p.onGround) state.idleT = 0;
 
   let anim = "idle";
-  if (p.wake > 0) anim = "stretch";
+  if (p.power > 0) anim = "bat";
+  else if (p.wake > 0) anim = "stretch";
   else if (p.attack > 0) anim = "bat";
   else if (!p.onGround) anim = "jump";
   else if (speed > 200) anim = "run";
@@ -746,6 +751,7 @@ function update(dt) {
     c.t += dt;
     if (overlaps(rect(p.x, p.y, p.w, p.h), rect(c.x - 12, c.y - 12, 24, 24))) {
       c.got = true; state.coins++; state.fish++; world.got++;
+      addCharge(7);
       sfx.coin();
       burst(c.x, c.y, 8, C.goldWarm);
     }
@@ -766,6 +772,64 @@ function update(dt) {
 
   updateParticles(dt);
   state.shake = Math.max(0, state.shake - dt * 40);
+}
+
+/* --------------------------------------------------------------- powers */
+function addCharge(n) {
+  const before = state.charge;
+  state.charge = Math.min(state.chargeMax, state.charge + n);
+  if (before < state.chargeMax && state.charge >= state.chargeMax) {
+    sfx.charge();
+    burst(player.x + player.w / 2, player.y + player.h / 2, 16, C.goldWarm);
+  }
+}
+
+function tryPower() {
+  const p = player;
+  if (state.charge < state.chargeMax || p.power > 0 || p.dead) return false;
+  state.charge = 0;
+  p.power = 0.42;             // thunder pounce
+  p.powerHits = 0;
+  p.invuln = Math.max(p.invuln, 0.5);
+  state.shake = 8;
+  sfx.thunder();
+  return true;
+}
+
+const powerTrail = [];
+
+function updatePower(dt) {
+  const p = player;
+  if (p.power <= 0) return;
+  powerTrail.push({ x: p.x, y: p.y, f: p.facing, life: 0.22, max: 0.22 });
+  if (powerTrail.length > 12) powerTrail.shift();
+  for (let i = powerTrail.length - 1; i >= 0; i--) {
+    powerTrail[i].life -= dt;
+    if (powerTrail[i].life <= 0) powerTrail.splice(i, 1);
+  }
+  p.power -= dt;
+  // lunge in the facing direction, ignoring friction while it lasts
+  p.vx = p.facing * 760;
+  p.vy = Math.min(p.vy, 0) * 0.2;
+  // anything the cat passes through dies
+  const hb = rect(p.x - 14, p.y - 10, p.w + 28, p.h + 20);
+  for (const e of world.enemies) {
+    if (e.alive && overlaps(hb, rect(e.x, e.y, e.w, e.h))) { killEnemy(e, p.facing * 260); p.powerHits++; }
+  }
+  if (world.boss && !world.boss.dead && overlaps(hb, rect(world.boss.x, world.boss.y, world.boss.w, world.boss.h))) {
+    if (world.boss.state === "stun" && world.boss.invuln <= 0) {
+      world.boss.hp--; world.boss.flash = 0.45; world.boss.invuln = 0.7;
+      world.boss.state = "hurt"; world.boss.t = 0; world.boss.vx = -world.boss.dir * 280;
+      state.shake = 12; sfx.bossHit();
+      if (world.boss.hp <= 0) killBoss();
+    }
+  }
+  if (Math.random() < 0.6) {
+    const a = (Math.random() - 0.5) * 2.2;
+    world.particles.push({ x: p.x + p.w / 2, y: p.y + p.h / 2,
+      vx: Math.cos(a) * 260 - p.facing * 120, vy: Math.sin(a) * 260,
+      life: 0.22, max: 0.22, c: C.bossEye, s: 3 });
+  }
 }
 
 /* ------------------------------------------------------------- the boss */
@@ -868,6 +932,7 @@ function updateBoss(dt) {
 
 function killEnemy(e, knock) {
   e.alive = false; e.squash = 0.25;
+  addCharge(28);
   burst(e.x + e.w / 2, e.y + e.h / 2, 12, "#AD7757");
   if (knock) { /* no body physics, just particles */ }
 }
@@ -1447,6 +1512,21 @@ function drawHUD() {
     if (on) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(x + 3, y + 4, 4, 3); }
   }
 
+  // charge meter
+  const cw = 120, cx0 = 72, cy0 = 46;
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.fillRect(cx0, cy0, cw, 7);
+  const frac = state.charge / state.chargeMax;
+  ctx.fillStyle = frac >= 1 ? C.bossEye : C.goldWarm;
+  ctx.fillRect(cx0, cy0, Math.round(cw * frac), 7);
+  if (frac >= 1) {
+    ctx.globalAlpha = 0.35 + Math.sin(state.t * 10) * 0.3;
+    ctx.fillStyle = C.bossEye;
+    ctx.fillRect(cx0 - 2, cy0 - 2, cw + 4, 11);
+    ctx.globalAlpha = 1;
+    text("C", cx0 + cw + 10, cy0 - 4, 1, C.bossEye);
+  }
+
   // fish count
   fishGlyph(158, 27);
   text(`X ${state.coins}/${state.totalCoins}`, 182, 26, 2, C.white);
@@ -1621,7 +1701,17 @@ function render() {
   for (const c of world.coins) if (!c.got) drawCoin(c);
   for (const e of world.enemies) drawEnemy(e);
   if (world.boss) drawBoss();
+  for (const g of powerTrail) {
+    const frames = ATLAS[state.setIndex === 0 ? "black" : "grey"].bat || ATLAS.black.bat;
+    const f = frames[0];
+    ctx.globalAlpha = Math.max(0, g.life / g.max) * 0.45;
+    ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h,
+      Math.round(g.x + g.w / 2 - world.cam) - f.w * 0.5 * (g.f < 0 ? 1 : 1),
+      Math.round(g.y + 42 - f.h), f.w, f.h);
+    ctx.globalAlpha = 1;
+  }
   drawPlayer();
+  drawPowerFx();
   for (const p of world.particles) {
     ctx.globalAlpha = Math.max(0, p.life / p.max);
     ctx.fillStyle = p.c;
@@ -1701,6 +1791,30 @@ function drawGrid() {
   ctx.beginPath(); ctx.moveTo(0, 470.5); ctx.lineTo(W, 470.5); ctx.stroke();
 }
 
+function drawPowerFx() {
+  const p = player;
+  if (p.power <= 0) return;
+  const cx = p.x + p.w / 2 - world.cam, cy = p.y + p.h / 2;
+  ctx.strokeStyle = C.bossEye;
+  ctx.lineWidth = 2;
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    let x = cx - p.facing * 40, y = cy + (k - 1) * 10;
+    ctx.moveTo(x, y);
+    for (let i = 0; i < 5; i++) {
+      x += p.facing * 14;
+      y += (Math.random() - 0.5) * 14;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.5 + Math.sin(state.t * 30) * 0.3;
+  ctx.strokeStyle = C.white;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, 26, 0, 7); ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
 function drawDev() {
   if (!DEV) return;
   const p = player;
@@ -1724,7 +1838,8 @@ function drawDev() {
   text(`anim ${p.anim} #${p.frame}  vy ${Math.round(p.vy)}`, 30, H - 102, 1, "#FFFFFF");
   text(`pos ${Math.round(p.x)},${Math.round(p.y)}  ground ${p.onGround ? 1 : 0}`, 30, H - 86, 1, "#FFFFFF");
   text(`H hitbox  G god  [ ] speed  N spawn`, 30, H - 70, 1, "#9AA7B2");
-  text(`K clear  T goal  L next  ' toggle`, 30, H - 54, 1, "#9AA7B2");
+  text(`K clear  T goal  L next  F charge`, 30, H - 54, 1, "#9AA7B2");
+  text(`charge ${Math.round(state.charge)}/${state.chargeMax}  C = power`, 30, H - 38, 1, "#8CFFC1");
 }
 
 /* ------------------------------------------------------------------ loop */

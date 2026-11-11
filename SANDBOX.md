@@ -60,9 +60,15 @@ unfair — if a dumb bot holding right can't finish, a player will hit the same 
 The cat builds a charge meter and spends it on a power.
 
 - **Gain:** stomp an enemy **+28**, collect a fish **+7**. Meter caps at 100.
-- **Spend:** at 100, press **`C`** to unleash **Thunder Pounce** — a 0.42 s lunge
-  (760 px/s), invulnerable, kills anything it passes through, and knocks a stunned Dust King
-  for one health. Charge resets to 0.
+- **Spend:** at 100, press **`C`** to cast the selected power. Charge resets to 0.
+- **Select:** `V` cycles; in dev `1` `2` `3` pick directly. The current power is named under
+  the meter.
+
+| Power | Effect | Ring |
+|---|---|---|
+| **Thunder Pounce** | 0.42 s lunge at 760 px/s, invulnerable, kills what it passes through, +1 hit on a stunned Dust King | cyan arcs + afterimage |
+| **Frost Nova** | freezes every enemy for 3 s (they stop moving, tinted ice, still harmful on touch) | cyan |
+| **Ember Burst** | 230 px radial kill, also hits a stunned Dust King | gold + fire particles |
 - **Tell:** the meter under the hearts pulses cyan when full; the dash draws lightning arcs,
   sparks and an afterimage trail.
 - **Tuning:** `state.chargeMax`, the `addCharge(28)` / `addCharge(7)` calls, and

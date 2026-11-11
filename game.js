@@ -114,7 +114,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
-  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powers: 0,
+  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null,
 };
 
 /* ---------------------------------------------------------------- sandbox */
@@ -176,6 +176,7 @@ addEventListener("keydown", (e) => {
   }
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
   if (e.code === "KeyC") tryPower();
+  if (e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
   if (DEV) {
@@ -193,6 +194,9 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
     if (e.code === "KeyR") loadLevel(state.level);
     if (e.code === "KeyF") { state.charge = state.chargeMax; sfx.charge(); }
+    if (e.code === "Digit1") state.powerId = 0;
+    if (e.code === "Digit2") state.powerId = 1;
+    if (e.code === "Digit3") state.powerId = 2;
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
@@ -511,7 +515,7 @@ function loadLevel(i) {
   world.coins = L.coins.map((c) => ({ x: c.x, y: c.y, got: false, t: Math.random() * 6 }));
   world.enemies = L.enemies.map((e) => ({
     x: e.x, y: 0, w: 40, h: 28, min: e.min, max: e.max,
-    vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0,
+    vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0, frozen: 0,
   }));
   world.goalDef = L.goal || null;
   // In the boss room (and the sandbox) there is no cushion until something creates one.
@@ -679,6 +683,7 @@ function update(dt) {
   p.animT += dt;
   const speed = Math.abs(p.vx);
   p.wake = Math.max(0, p.wake - dt);
+  state.emberVfx = Math.max(0, state.emberVfx - dt);
 
   // stand still long enough and the cat lies down, then falls asleep
   if (p.onGround && speed < 20 && p.attack <= 0 && p.wake <= 0 && !p.dead) state.idleT += dt;
@@ -714,6 +719,7 @@ function update(dt) {
   // enemies
   for (const e of world.enemies) {
     if (!e.alive) { e.squash = Math.max(0, e.squash - dt); continue; }
+    if (e.frozen > 0) { e.frozen -= dt; e.t += dt; continue; }
     e.t += dt;
     e.x += e.vx * dt;
     if (e.x < e.min) { e.x = e.min; e.vx = Math.abs(e.vx); }
@@ -784,15 +790,58 @@ function addCharge(n) {
   }
 }
 
-function tryPower() {
+const POWERS = [
+  { name: "THUNDER POUNCE", tint: "#73BED3" },
+  { name: "FROST NOVA", tint: "#A4DDDB" },
+  { name: "EMBER BURST", tint: "#DE9E41" },
+];
+
+function castThunder() {
   const p = player;
-  if (state.charge < state.chargeMax || p.power > 0 || p.dead) return false;
-  state.charge = 0;
-  p.power = 0.42;             // thunder pounce
+  p.power = 0.42;
   p.powerHits = 0;
   p.invuln = Math.max(p.invuln, 0.5);
   state.shake = 8;
   sfx.thunder();
+}
+
+function castFrost() {
+  const p = player;
+  for (const e of world.enemies) if (e.alive) e.frozen = 3.0;
+  state.shake = 5;
+  state.emberVfx = 0.35;      // ring flash
+  state.ringColor = C.bossEye;
+  burst(p.x + p.w / 2, p.y + p.h / 2, 26, C.bossEye);
+}
+
+function castEmber() {
+  const p = player;
+  const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = 230;
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    if (Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < r) killEnemy(e, 0);
+  }
+  if (world.boss && !world.boss.dead && world.boss.state === "stun" && world.boss.invuln <= 0) {
+    world.boss.hp--; world.boss.flash = 0.45; world.boss.invuln = 0.7;
+    world.boss.state = "hurt"; world.boss.t = 0; world.boss.vx = 0;
+    if (world.boss.hp <= 0) killBoss();
+  }
+  state.shake = 9;
+  state.emberVfx = 0.4;
+  state.ringColor = C.goldWarm;
+  burst(cx, cy, 34, C.goldWarm);
+  burst(cx, cy, 18, C.red);
+}
+
+function tryPower() {
+  const p = player;
+  if (state.charge < state.chargeMax || p.power > 0 || p.dead) return false;
+  state.charge = 0;
+  const id = state.powerId;
+  if (id === 0) castThunder();
+  else if (id === 1) castFrost();
+  else castEmber();
+  p.invuln = Math.max(p.invuln, 0.4);
   return true;
 }
 
@@ -1213,6 +1262,12 @@ function drawEnemy(e) {
     }
     return;
   }
+  if (e.frozen > 0) {
+    ctx.fillStyle = "rgba(164,221,219,0.55)";
+    ctx.fillRect(x - 2, y - 2, e.w + 4, e.h + 4);
+    ctx.strokeStyle = C.bossEye; ctx.lineWidth = 1;
+    ctx.strokeRect(x - 2, y - 2, e.w + 4, e.h + 4);
+  }
   const wob = Math.sin(e.t * 8) * 1.5;
   // bird body
   ctx.fillStyle = "#A53030";
@@ -1519,12 +1574,14 @@ function drawHUD() {
   const frac = state.charge / state.chargeMax;
   ctx.fillStyle = frac >= 1 ? C.bossEye : C.goldWarm;
   ctx.fillRect(cx0, cy0, Math.round(cw * frac), 7);
+  const powSel = POWERS[state.powerId];
+  text(powSel.name, cx0, cy0 + 22, 1, powSel.tint);
   if (frac >= 1) {
     ctx.globalAlpha = 0.35 + Math.sin(state.t * 10) * 0.3;
-    ctx.fillStyle = C.bossEye;
+    ctx.fillStyle = powSel.tint;
     ctx.fillRect(cx0 - 2, cy0 - 2, cw + 4, 11);
     ctx.globalAlpha = 1;
-    text("C", cx0 + cw + 10, cy0 - 4, 1, C.bossEye);
+    text("C", cx0 + cw + 6, cy0 + 22, 1, C.bossEye);
   }
 
   // fish count
@@ -1710,6 +1767,7 @@ function render() {
       Math.round(g.y + 42 - f.h), f.w, f.h);
     ctx.globalAlpha = 1;
   }
+  drawEmberRing();
   drawPlayer();
   drawPowerFx();
   for (const p of world.particles) {
@@ -1789,6 +1847,21 @@ function drawGrid() {
   // floor line, so jump height reads against something
   ctx.strokeStyle = "rgba(255,255,255,0.22)";
   ctx.beginPath(); ctx.moveTo(0, 470.5); ctx.lineTo(W, 470.5); ctx.stroke();
+}
+
+function drawEmberRing() {
+  if (state.emberVfx <= 0) return;
+  const p = player;
+  const t = 1 - state.emberVfx / 0.4;
+  const r = 20 + t * 150;
+  ctx.globalAlpha = 0.8 * (1 - t);
+  ctx.strokeStyle = state.ringColor || C.goldWarm;
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(p.x + p.w / 2 - world.cam, p.y + p.h / 2, r, 0, 7); ctx.stroke();
+  ctx.strokeStyle = C.white;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(p.x + p.w / 2 - world.cam, p.y + p.h / 2, r * 0.82, 0, 7); ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 function drawPowerFx() {

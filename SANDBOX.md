@@ -55,6 +55,22 @@ node tools/design.mjs      # HUD stays out of the play band
 `tools/playthrough.mjs` is the one that catches mechanics that accidentally make a room
 unfair — if a dumb bot holding right can't finish, a player will hit the same wall.
 
+## Icons from the sprite atlas
+
+Power icons in the HUD are 16×16 sprites pulled from `/home/husni/sprite-atlas` (1.4M CC0
+sprites, indexed in `atlas.db`):
+
+```bash
+cd /home/husni/sprite-atlas
+python3 pick_icon.py "ice crystal"     out/ice.png    --want blue
+python3 pick_icon.py "lightning bolt"  out/bolt.png   --want cyan
+python3 pick_icon.py "flame"           out/fire.png   --want warm
+```
+
+Copy the PNGs into `assets/icons/` and they are picked up by `powerIcons` in `game.js`.
+The `--want` flag scores the mean colour of the opaque pixels, so you can ask for a blue
+lightning bolt instead of the first yellow one.
+
 ## Charge → superpower (first slice)
 
 The cat builds a charge meter and spends it on a power.

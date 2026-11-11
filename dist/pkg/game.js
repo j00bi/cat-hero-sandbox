@@ -109,6 +109,10 @@ function text(str, x, y, s = 2, color = "#10141F", align = "left") {
 
 /* ----------------------------------------------------------------- atlas */
 let atlasImg = new Image();
+const powerIcons = [new Image(), new Image(), new Image()];
+powerIcons[0].src = "assets/icons/power0.png";
+powerIcons[1].src = "assets/icons/power1.png";
+powerIcons[2].src = "assets/icons/power2.png";
 let ATLAS = null;
 
 const state = {
@@ -1577,13 +1581,17 @@ function drawHUD() {
   ctx.fillStyle = frac >= 1 ? C.bossEye : C.goldWarm;
   ctx.fillRect(cx0, cy0, Math.round(cw * frac), 7);
   const powSel = POWERS[state.powerId];
+  const icon = powerIcons[state.powerId];
+  if (icon && icon.complete && icon.naturalWidth) {
+    ctx.drawImage(icon, cx0 + cw + 8, cy0 - 5, 18, 18);
+  }
   text(powSel.name, cx0, cy0 + 22, 1, powSel.tint);
   if (frac >= 1) {
     ctx.globalAlpha = 0.35 + Math.sin(state.t * 10) * 0.3;
     ctx.fillStyle = powSel.tint;
     ctx.fillRect(cx0 - 2, cy0 - 2, cw + 4, 11);
     ctx.globalAlpha = 1;
-    text("C", cx0 + cw + 6, cy0 + 22, 1, C.bossEye);
+    text("C", cx0 + cw + 32, cy0 + 22, 1, C.bossEye);
   }
 
   // fish count

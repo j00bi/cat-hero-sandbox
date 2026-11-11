@@ -69,8 +69,9 @@ The cat builds a charge meter and spends it on a power.
 | **Thunder Pounce** | 0.42 s lunge at 760 px/s, invulnerable, kills what it passes through, +1 hit on a stunned Dust King | cyan arcs + afterimage |
 | **Frost Nova** | freezes every enemy for 3 s (they stop moving, tinted ice, still harmful on touch) | cyan |
 | **Ember Burst** | 230 px radial kill, also hits a stunned Dust King | gold + fire particles |
-- **Tell:** the meter under the hearts pulses cyan when full; the dash draws lightning arcs,
-  sparks and an afterimage trail.
+- **Tell:** every time the meter gains charge the cat plays a two-frame power-up flourish
+  (specials 1 and 2); the meter under the hearts pulses when full; each power has its own
+  ring and particles.
 - **Tuning:** `state.chargeMax`, the `addCharge(28)` / `addCharge(7)` calls, and
   `p.power = 0.42` / `p.vx = p.facing * 760` in `updatePower`.
 

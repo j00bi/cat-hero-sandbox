@@ -193,7 +193,7 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
     if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
     if (e.code === "KeyR") loadLevel(state.level);
-    if (e.code === "KeyF") { state.charge = state.chargeMax; sfx.charge(); }
+    if (e.code === "KeyF") addCharge(state.chargeMax);
     if (e.code === "Digit1") state.powerId = 0;
     if (e.code === "Digit2") state.powerId = 1;
     if (e.code === "Digit3") state.powerId = 2;
@@ -501,7 +501,7 @@ const LEVELS = [
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0,
 };
 
 function loadLevel(i) {
@@ -640,7 +640,7 @@ function update(dt) {
 
   // horizontal input
   const want = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-  if ((want !== 0 || queued.jump) && state.idleT > 6) { p.wake = 0.45; state.idleT = 0; }
+  if ((want !== 0 || queued.jump) && state.idleT > 6) { state.idleT = 0; }
   if (want !== 0) {
     p.vx += want * ACCEL * dt;
     p.facing = want;
@@ -684,6 +684,7 @@ function update(dt) {
   const speed = Math.abs(p.vx);
   p.wake = Math.max(0, p.wake - dt);
   state.emberVfx = Math.max(0, state.emberVfx - dt);
+  p.chargeT = Math.max(0, p.chargeT - dt);
 
   // stand still long enough and the cat lies down, then falls asleep
   if (p.onGround && speed < 20 && p.attack <= 0 && p.wake <= 0 && !p.dead) state.idleT += dt;
@@ -691,7 +692,7 @@ function update(dt) {
 
   let anim = "idle";
   if (p.power > 0) anim = "bat";
-  else if (p.wake > 0) anim = "stretch";
+  else if (p.chargeT > 0) anim = "charge";
   else if (p.attack > 0) anim = "bat";
   else if (!p.onGround) anim = "jump";
   else if (speed > 200) anim = "run";
@@ -782,6 +783,7 @@ function update(dt) {
 
 /* --------------------------------------------------------------- powers */
 function addCharge(n) {
+  if (n > 0) player.chargeT = 0.45;
   const before = state.charge;
   state.charge = Math.min(state.chargeMax, state.charge + n);
   if (before < state.chargeMax && state.charge >= state.chargeMax) {

@@ -340,3 +340,46 @@ around the body and never curls over the nose. Keep it short in all four frames.
 If you would rather have a long tail, that is a legitimate design — but it must be decided
 for **all 28 frames**, not just the sleeping one. A tail that only appears when asleep is the
 kind of detail players notice immediately.
+
+---
+
+# SLEEP CURL — 4 variants, tail forced short
+
+The model adds a long tail to any curled pose because that is what a curled cat looks like.
+Anchor the tail to a breed with no long tail at all (Japanese bobtail) and describe it as a
+stub at the hip, not a shape that goes around anything.
+
+<prompt>
+Same cat as the attached reference: chunky tuxedo cat, black coat with white bib, white muzzle
+and white paws, amber eye, short legs, big round head.
+
+Pixel art, 16-bit style, 1 px dark outline, flat fills, 2-step shading, no anti-aliasing,
+no gradients, no shadows.
+
+Exactly 4 frames in one horizontal row, evenly spaced, identical scale in all four.
+All four frames are the SAME pose: the cat curled up asleep, seen from the side, facing right.
+Vary only the breathing — chest a little fuller, head tilted a few pixels, always eyes closed.
+
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+TAIL — this is the most important part. This cat has a Japanese-bobtail tail: a short
+pom-pom stub, no longer than its hind paw, tucked against the hip like a small dark tuft.
+The tail does NOT wrap around the body, does NOT curl over the nose, does NOT form a ring,
+loop or circle around the cat, and is never drawn as a long tapering shape.
+
+Curl: body a compact oval, back rounded, head tucked down against the chest, front paws folded
+under the chin, hind legs tucked close.
+</prompt>
+
+Negative prompt to add if your UI has one:
+```
+long tail, wrapped tail, tail ring, tail loop, tail over the nose, tail encircling the body,
+standing, walking, open eyes, paws stretched out, ground line, text
+```
+
+## Reject if
+
+- any frame has a curved line going around the body — that's the long tail
+- the tail reaches past the hip
+- the cat isn't a compact oval
+- more than one pose among the four

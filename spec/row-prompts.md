@@ -234,3 +234,64 @@ no bounding, no crouching, no airborne frames.
 - Upright and taller than the run row — if it looks like the run, reject it, that's the whole point
 - One paw always on the ground
 - Same cat, same tail carriage, same scale across all eight
+
+---
+
+# JUMP — 4 frames
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no motion blur, no speed lines, no shadows,
+no gradients.
+
+Exactly 4 frames in one horizontal row, evenly spaced. Identical scale and zoom in every
+frame — body length, head size and leg length must not change between poses.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line,
+no trajectory arc, no dotted line, no motion trail.
+
+1 crouch — body low, legs compressed under the body, tail down, about to spring
+2 launch — body angled upward, front legs tucked to the chest, rear legs extended down and
+  back, tail trailing below
+3 apex — body horizontal, all four legs tucked close to the body, tail up, ears back
+4 descend — front legs reaching forward and down, rear legs trailing up, tail high, ready
+  to land
+</prompt>
+
+---
+
+# SWIPE — 4 frames
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no motion blur, no slash marks, no impact
+streaks, no dust, no shadows.
+
+Exactly 4 frames in one horizontal row, evenly spaced. Identical scale and zoom in every
+frame. Feet on one shared baseline.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+Draw the paw only — no separate claw objects, no white streaks, no afterimages.
+
+1 wind-up — front paw pulled back against the chest, shoulder turned, body coiled, ears back
+2 contact — front paw fully extended forward at chest height, body leaning into the swing
+3 follow-through — paw swept past the body, head turned with the swing, tail counterweighting
+4 recover — back to a neutral standing stance, paw returning to the ground
+</prompt>
+
+---
+
+# SPECIALS — 4 frames
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no shadows, no gradients, no sparkles.
+
+Exactly 4 frames in one horizontal row, evenly spaced. Identical scale and zoom in every
+frame.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+1 curled asleep — tight circle, tail wrapped over the nose, eyes closed
+2 playful crouch — front paws down, rear raised, tail flicking up, eyes open and bright
+3 stretch — front legs extended forward and low, rear high, body long, eyes half closed
+4 yawn — sitting upright, mouth wide open, eyes squeezed shut, tail curled at the side
+</prompt>

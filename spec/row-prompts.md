@@ -298,6 +298,26 @@ Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground 
 
 ---
 
+
+---
+
+# GLOBAL RULE — markings (add to every prompt)
+
+The legs drifted: the loaf reference reads black on the hind quarter, while walk/run drew the
+legs white. Measured on the accepted rows, the leg region is ~46% white `#ebede9`, ~18% grey
+`#a8b5b2`, with black only as outline — so **white legs is the established design**.
+
+```
+MARKINGS — follow exactly:
+- BLACK: whole head, ears, back, sides, and the rump down to the hip.
+- WHITE: muzzle, chin, chest and belly (one continuous bib), and ALL FOUR LEGS from shoulder
+  and hip down to the paws, including the paws themselves.
+- The black stops at the shoulder and at the hip. It never runs down a leg.
+- Tail: a short black stub at the rump, no longer than the hind paw.
+```
+
+If a frame shows a black leg, it is wrong — reject it.
+
 # GLOBAL RULE — the tail (add to every prompt from now on)
 
 The design is a **short bobtail**. It is the easiest thing for the model to drift on, because

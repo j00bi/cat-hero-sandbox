@@ -160,3 +160,40 @@ python3 tools/sprite_qc.py   out/run-sheet.png
 
 Reject on: wrong frame count, off-palette pixels, soft/haloed alpha, feet off the baseline,
 body taller than 42 px above the foot line.
+
+---
+
+# RUN v2 — the pose list was describing a leap
+
+Two attempts both came back as crouch → leap → land → stand. That is a jump arc, not a run.
+The cause is the wording: "gather, push-off, airborne stretch, descend" describes jumping, and
+a crouched frame 1 anchors the whole story.
+
+Replace the row with a **fast trot**: body low and pitched forward, all four paws within a few
+pixels of the ground, no airborne frame.
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no motion blur, no speed lines, no shadows,
+no gradients.
+
+Exactly 8 frames in one horizontal row, evenly spaced. Identical scale and zoom in every
+frame — the cat's body length, head size and leg length must not change between poses.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+This is a FAST TROT, not a jump. The spine stays roughly horizontal and low. All four paws
+stay within a few pixels of the ground line. No frame is airborne, no frame is a crouched
+ball, no frame is standing upright.
+
+1 front-left paw forward and planted, rear-right paw back
+2 both front paws gathered under the chest, rear pushing off
+3 front-left lifting forward, rear-left extended back
+4 front legs crossing under the body, body at its longest
+5 front-right paw forward and planted, rear-left paw back
+6 both front paws gathered under the chest, rear pushing off
+7 front-right lifting forward, rear-right extended back
+8 front legs crossing under the body, body at its longest
+</prompt>
+
+If a leap is what you actually want, keep it — but that belongs in the 4-frame JUMP row, and
+the run should stay a cycle.

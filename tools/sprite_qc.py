@@ -15,17 +15,18 @@ APOLLO = {tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in SPEC["palette"]
 CELL = tuple(SPEC["canvas"]["cell"])
 FOOT = SPEC["canvas"]["foot_line_offset"]
 HB = tuple(SPEC["canvas"]["hitbox"])
-EXPECTED = SPEC["total_frames"]
+DEFAULT_FRAMES = SPEC["total_frames"]
 
 
-def main(path, cols=6):
+def main(path, cols=6, expected=None):
+    expected = expected or DEFAULT_FRAMES
     im = Image.open(path).convert("RGBA")
     cell = CELL[0]
 
     fails = []
     occupied = 0
 
-    for idx in range(EXPECTED):
+    for idx in range(expected):
         cx = (idx % cols) * cell
         cy = (idx // cols) * cell
         if cx + cell > im.width or cy + cell > im.height:
@@ -60,8 +61,8 @@ def main(path, cols=6):
         if height > HB[1] + 24:          # 24px tolerance for tail/ears
             fails.append(f"cell {idx}: body {height}px tall, hitbox allows {HB[1]}")
 
-    if occupied and occupied != EXPECTED:
-        fails.append(f"only {occupied}/{EXPECTED} cells occupied")
+    if occupied and occupied != expected:
+        fails.append(f"only {occupied}/{expected} cells occupied")
     if im.width < cols * cell:
         fails.append("sheet narrower than one row of cells")
 
@@ -74,7 +75,18 @@ def main(path, cols=6):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+    if not args:
         print(__doc__)
         sys.exit(2)
-    sys.exit(main(sys.argv[1]))
+    cols, frames = 6, None
+    rest = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--cols":
+            cols = int(args[i + 1]); i += 2
+        elif args[i] == "--frames":
+            frames = int(args[i + 1]); i += 2
+        else:
+            rest.append(args[i]); i += 1
+    sys.exit(main(rest[0], cols=cols, expected=frames))

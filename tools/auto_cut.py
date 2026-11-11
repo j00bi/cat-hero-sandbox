@@ -22,12 +22,22 @@ CELL, FOOT, MAX_W, MAX_H = 96, 8, 87, 66
 
 DARK = [(9, 10, 20), (16, 20, 31), (21, 29, 40), (32, 46, 55)]   # Apollo neutrals only
 
+# The cat is black-and-white (or grey-and-white) with an amber eye. Restricting the
+# quantiser to that subset stops anti-aliased edges snapping to Apollo's browns/reds,
+# which is what put an orange fringe around every sprite.
+CHARACTER = [
+    (9, 10, 20), (16, 20, 31), (21, 29, 40), (32, 46, 55),      # blacks
+    (57, 74, 80), (87, 114, 119), (129, 151, 150),               # greys
+    (168, 181, 178), (199, 207, 204), (235, 237, 233),           # whites
+    (232, 193, 112), (222, 158, 65),                             # amber eye / inner ear
+]
+
 
 def nearest(p):
     """Snap to Apollo, but keep edge pixels neutral: nearest-colour on a dark
     anti-aliased edge otherwise lands on Apollo's dark red and fringes the sprite."""
     lum = 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]
-    pool = DARK if lum < 70 else APOLLO
+    pool = DARK if lum < 70 else CHARACTER
     return min(pool, key=lambda a: (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2 + (p[2] - a[2]) ** 2)
 
 
@@ -77,15 +87,18 @@ def row_bands(im, rows):
     return [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
 
 
-def cells_in_band(im, y0, y1, n, merge_gap=3):
-    """Segment a band into sprites: zero-gap column runs, then merge tiny gaps
-    (a detached tail), then keep the n widest if the model added debris."""
+def cells_in_band(im, y0, y1, n, max_merge=24):
+    """Segment a band into exactly n sprites.
+
+    Start from zero-gap column runs, then close the smallest gaps first until the count
+    matches n — that keeps detached tails attached without swallowing a neighbouring cat.
+    """
     a = np.asarray(im)[:, :, 3] > 0
     band = a[y0:y1]
     cols = band.any(axis=0)
     W = len(cols)
 
-    raw, x = [], 0
+    runs, x = [], 0
     while x < W:
         if not cols[x]:
             x += 1
@@ -93,21 +106,23 @@ def cells_in_band(im, y0, y1, n, merge_gap=3):
         x0 = x
         while x < W and cols[x]:
             x += 1
-        raw.append([x0, x])
+        runs.append([x0, x])
 
-    merged = []
-    for r in raw:
-        if merged and r[0] - merged[-1][1] <= merge_gap:
-            merged[-1][1] = r[1]
-        else:
-            merged.append(r)
+    while len(runs) > n:
+        gaps = [(runs[i + 1][0] - runs[i][1], i) for i in range(len(runs) - 1)]
+        gaps = [g for g in gaps if g[0] <= max_merge]
+        if not gaps:
+            break
+        _, i = min(gaps)
+        runs[i][1] = runs[i + 1][1]
+        del runs[i + 1]
 
-    if len(merged) != n:
-        merged = sorted(merged, key=lambda r: r[1] - r[0], reverse=True)[:n]
-        merged.sort()
+    if len(runs) > n:
+        runs = sorted(runs, key=lambda r: r[1] - r[0], reverse=True)[:n]
+        runs.sort()
 
     out = []
-    for (sx0, sx1) in merged:
+    for (sx0, sx1) in runs:
         sub = band[:, sx0:sx1]
         ys = np.where(sub.any(axis=1))[0]
         if len(ys) == 0:

@@ -24,7 +24,7 @@ Status as of 2026-11-10. ✅ done · 🟡 partial · ⬜ not started · ❓ deci
 |---|---|---|
 | 🟡 | Tuxedo reference frame | cropped → `spec/ref-tuxedo.png` |
 | 🟡 | Tuxedo sheet (first attempt) | exists but 6-frame rows, motion blur, drawn rules, weak swipe |
-| ⬜ | Tuxedo **walk** — 8 frames, leg script | regenerate |
+| ✅ | Tuxedo **walk** — 8 frames, upright | `out/walk-v1-atlas.png` (accepted) |
 | ✅ | Tuxedo **run** — 8 frames, fast trot | `out/run-v3-atlas.png` (v3 accepted) |
 | ⬜ | Tuxedo **jump** — 4 frames | regenerate (drop the arc line) |
 | ⬜ | Tuxedo **swipe** — 4 frames | regenerate (no slash streaks, no tongue) |

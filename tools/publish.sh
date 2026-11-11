@@ -5,13 +5,13 @@
 #
 # Produces dist/cat-hero-itch.zip (for itch.io) and force-pushes the same files
 # to the gh-pages branch of j00bi/cat-hero, which serves:
-#   https://j00bi.github.io/cat-hero-restyle/
+#   https://j00bi.github.io/cat-hero-sandbox/
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-REPO="j00bi/cat-hero-restyle"
+REPO="j00bi/cat-hero-sandbox"
 SITE="dist/pkg"
 
 echo "== build $SITE"
@@ -44,4 +44,4 @@ git -c credential.helper='!gh auth git-credential' push -q -f origin gh-pages
 cd "$ROOT"
 rm -rf "$tmp"
 
-echo "== live: https://j00bi.github.io/cat-hero-restyle/  (give Pages ~30s)"
+echo "== live: https://j00bi.github.io/cat-hero-sandbox/  (give Pages ~30s)"

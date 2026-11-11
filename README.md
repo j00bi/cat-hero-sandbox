@@ -1,3 +1,8 @@
+# CAT HERO — sandbox
+
+> Prototype build. Add `?dev=1` for hitboxes, time scale, spawn and teleport.
+> Tools and workflow: `SANDBOX.md`. Stable build lives in `../cat-hero-restyle`.
+
 # CAT HERO — restyle fork
 
 > Design pass on top of `../cat-hero`: paper-card screens, a warm single-source palette,

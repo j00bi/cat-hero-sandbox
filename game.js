@@ -117,6 +117,11 @@ const state = {
   hudRects: [], idleT: 0,
 };
 
+/* ---------------------------------------------------------------- sandbox */
+// Open the page with ?dev=1 to get the sandbox tools. Without it the game is unchanged.
+const DEV = new URLSearchParams(location.search).has("dev");
+const dev = { timeScale: 1, hitboxes: false, god: false, overlay: true, fps: 60 };
+
 const keys = Object.create(null);
 const queued = { jump: false, bat: false };
 let paused = false;
@@ -171,6 +176,20 @@ addEventListener("keydown", (e) => {
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
+  if (DEV) {
+    if (e.code === "KeyH") dev.hitboxes = !dev.hitboxes;
+    if (e.code === "KeyG") dev.god = !dev.god;
+    if (e.code === "Backquote") dev.overlay = !dev.overlay;
+    if (e.code === "BracketLeft") dev.timeScale = Math.max(0.1, +(dev.timeScale - 0.1).toFixed(2));
+    if (e.code === "BracketRight") dev.timeScale = Math.min(3, +(dev.timeScale + 0.1).toFixed(2));
+    if (e.code === "KeyN" && state.mode === "play") {
+      world.enemies.push({ x: player.x + 120, y: player.y, w: 40, h: 28,
+        min: player.x - 400, max: player.x + 400, vx: 70, dir: 1, alive: true, t: 0, squash: 0 });
+    }
+    if (e.code === "KeyK" && state.mode === "play") for (const en of world.enemies) en.alive = false;
+    if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
+    if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
+  }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
       state.setIndex = 1 - state.setIndex;
@@ -637,6 +656,7 @@ function update(dt) {
   p.vy = Math.min(MAXFALL, p.vy + GRAV * dt);
   movePlayer(dt);
   if (p.invuln > 0) p.invuln -= dt;
+  if (DEV && dev.god) p.invuln = Math.max(p.invuln, 0.4);
 
   // animation
   p.animT += dt;
@@ -1594,6 +1614,7 @@ function render() {
   ctx.restore();
 
   drawHUD();
+  drawDev();
 
   if (state.mode === "clear") {
     drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
@@ -1621,6 +1642,32 @@ function render() {
   }
 }
 
+function drawDev() {
+  if (!DEV) return;
+  const p = player;
+  if (dev.hitboxes && state.mode === "play") {
+    const cx = world.cam;
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#ff3b30";
+    ctx.strokeRect(Math.round(p.x - cx), Math.round(p.y), p.w, p.h);
+    ctx.strokeStyle = "#ffcc00";
+    for (const en of world.enemies) if (en.alive) ctx.strokeRect(Math.round(en.x - cx), Math.round(en.y), en.w, en.h);
+    ctx.strokeStyle = "#ff00ff";
+    if (world.boss) ctx.strokeRect(Math.round(world.boss.x - cx), Math.round(world.boss.y), world.boss.w, world.boss.h);
+    ctx.strokeStyle = "rgba(0,255,200,0.45)";
+    for (const sd of world.level.solids) ctx.strokeRect(Math.round(sd.x - cx), Math.round(sd.y), sd.w, sd.h);
+    ctx.strokeStyle = "rgba(120,200,255,0.55)";
+    for (const pl of world.plats) ctx.strokeRect(Math.round(pl.x - cx), Math.round(pl.y), pl.w, pl.h);
+  }
+  if (!dev.overlay) return;
+  panel(16, H - 128, 340, 112);
+  text(`DEV  ${Math.round(dev.fps)} fps  x${dev.timeScale.toFixed(1)}`, 30, H - 118, 1, "#8CFFC1");
+  text(`anim ${p.anim} #${p.frame}  vy ${Math.round(p.vy)}`, 30, H - 102, 1, "#FFFFFF");
+  text(`pos ${Math.round(p.x)},${Math.round(p.y)}  ground ${p.onGround ? 1 : 0}`, 30, H - 86, 1, "#FFFFFF");
+  text(`H hitbox  G god  [ ] speed  N spawn`, 30, H - 70, 1, "#9AA7B2");
+  text(`K clear  T goal  L next  ' toggle`, 30, H - 54, 1, "#9AA7B2");
+}
+
 /* ------------------------------------------------------------------ loop */
 let last = performance.now(), acc = 0;
 const STEP = 1 / 120;
@@ -1629,6 +1676,7 @@ function frame(now) {
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.1) dt = 0.1;
+  if (DEV) { dev.fps = dev.fps * 0.9 + (1 / Math.max(dt, 0.0001)) * 0.1; dt *= dev.timeScale; }
   acc += dt;
   let guard = 0;
   while (acc >= STEP && guard++ < 8) { update(STEP); acc -= STEP; }

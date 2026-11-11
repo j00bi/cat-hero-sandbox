@@ -295,3 +295,48 @@ Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground 
 3 stretch — front legs extended forward and low, rear high, body long, eyes half closed
 4 yawn — sitting upright, mouth wide open, eyes squeezed shut, tail curled at the side
 </prompt>
+
+---
+
+# GLOBAL RULE — the tail (add to every prompt from now on)
+
+The design is a **short bobtail**. It is the easiest thing for the model to drift on, because
+"cat" pulls toward a long tail, and a curled-sleep pose *wants* a long tail to wrap.
+
+```
+TAIL: short and stubby, no longer than the hind leg, held up and slightly curved.
+The tail never wraps around the body, never curls over the nose, never reaches past the hip.
+```
+
+This applies to both skins and every row. Check it on the curl-sleep frame first — that is
+where it breaks.
+
+---
+
+# SPECIALS v2 — short-tail curl
+
+Frame 1 came back with a long tail wrapping the body, which contradicts the bobtail in every
+other row. Re-roll the row with the tail pinned.
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no shadows, no gradients.
+
+Exactly 4 frames in one horizontal row, evenly spaced, identical scale in every frame.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+TAIL: this cat has a SHORT STUBBY TAIL, no longer than its hind leg. The tail never wraps
+around the body and never curls over the nose. Keep it short in all four frames.
+
+1 curled asleep — cat curled into a tight ball, head tucked down, eyes closed, the SHORT tail
+  resting flat against the hind leg, not encircling the body
+2 playful crouch — front paws down, rear raised, short tail flicking up, eyes open and bright
+3 stretch — front legs extended forward and low, rear high, body long, short tail up
+4 yawn — sitting upright, mouth wide open, eyes squeezed shut, short tail down at the side
+</prompt>
+
+## Why two variants exist
+
+If you would rather have a long tail, that is a legitimate design — but it must be decided
+for **all 28 frames**, not just the sleeping one. A tail that only appears when asleep is the
+kind of detail players notice immediately.

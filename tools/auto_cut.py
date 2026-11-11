@@ -20,8 +20,15 @@ APOLLO = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in SPEC["palette"]
 CELL, FOOT, MAX_W, MAX_H = 96, 8, 87, 66
 
 
+DARK = [(9, 10, 20), (16, 20, 31), (21, 29, 40), (32, 46, 55)]   # Apollo neutrals only
+
+
 def nearest(p):
-    return min(APOLLO, key=lambda a: (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2 + (p[2] - a[2]) ** 2)
+    """Snap to Apollo, but keep edge pixels neutral: nearest-colour on a dark
+    anti-aliased edge otherwise lands on Apollo's dark red and fringes the sprite."""
+    lum = 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]
+    pool = DARK if lum < 70 else APOLLO
+    return min(pool, key=lambda a: (p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2 + (p[2] - a[2]) ** 2)
 
 
 def keyed(path, fuzz):
@@ -57,7 +64,9 @@ def row_bands(im, rows):
     H = a.shape[0]
     prof = a.sum(axis=1).astype(float)
     prof = np.convolve(prof, np.ones(5) / 5, mode="same")
-    cand = sorted(((prof[y], y) for y in range(60, H - 60)))
+    if rows <= 1:
+        return [(0, H)]
+    cand = sorted(((prof[y], y) for y in range(40, H - 40)))
     splits = []
     for _, y in cand:
         if all(abs(y - s) > 120 for s in splits):
@@ -68,25 +77,44 @@ def row_bands(im, rows):
     return [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
 
 
-def cells_in_band(im, y0, y1, n):
-    """Divide a band into n equal slots across its content extent, then trim each.
-    Models space sprites unevenly, but they are ordered left to right."""
+def cells_in_band(im, y0, y1, n, merge_gap=3):
+    """Segment a band into sprites: zero-gap column runs, then merge tiny gaps
+    (a detached tail), then keep the n widest if the model added debris."""
     a = np.asarray(im)[:, :, 3] > 0
     band = a[y0:y1]
-    cols = np.where(band.any(axis=0))[0]
-    if len(cols) == 0:
-        return []
-    x0, x1 = cols.min(), cols.max() + 1
-    w = (x1 - x0) / n
+    cols = band.any(axis=0)
+    W = len(cols)
+
+    raw, x = [], 0
+    while x < W:
+        if not cols[x]:
+            x += 1
+            continue
+        x0 = x
+        while x < W and cols[x]:
+            x += 1
+        raw.append([x0, x])
+
+    merged = []
+    for r in raw:
+        if merged and r[0] - merged[-1][1] <= merge_gap:
+            merged[-1][1] = r[1]
+        else:
+            merged.append(r)
+
+    if len(merged) != n:
+        merged = sorted(merged, key=lambda r: r[1] - r[0], reverse=True)[:n]
+        merged.sort()
+
     out = []
-    for k in range(n):
-        sx0, sx1 = int(x0 + k * w), int(x0 + (k + 1) * w)
+    for (sx0, sx1) in merged:
         sub = band[:, sx0:sx1]
         ys = np.where(sub.any(axis=1))[0]
         if len(ys) == 0:
             continue
-        out.append((int(sub.any(axis=0).argmax()) + sx0, y0 + int(ys.min()),
-                    sx1, y0 + int(ys.max()) + 1))
+        cx = np.where(sub.any(axis=0))[0]
+        out.append((sx0 + int(cx.min()), y0 + int(ys.min()),
+                    sx0 + int(cx.max()) + 1, y0 + int(ys.max()) + 1))
     return out
 
 
@@ -104,14 +132,12 @@ def main():
     for (y0, y1), n in zip(bands, counts):
         segs.extend(cells_in_band(im, y0, y1, n))
     rows = []
-    for (x0, y0, x1, y1) in segs:
-        cy = (y0 + y1) / 2
-        if rows and abs(cy - rows[-1]["cy"]) < (y1 - y0) * 0.6:
-            rows[-1]["boxes"].append((x0, y0, x1, y1))
-        else:
-            rows.append({"cy": cy, "boxes": [(x0, y0, x1, y1)]})
-    for r in rows:
-        r["boxes"].sort(key=lambda b: b[0])
+    idx = 0
+    for n in counts:
+        boxes = segs[idx:idx + n]
+        idx += n
+        if boxes:
+            rows.append({"boxes": boxes})
 
     cols = max(len(r["boxes"]) for r in rows)
     sheet = Image.new("RGBA", (cols * CELL, len(rows) * CELL), (0, 0, 0, 0))

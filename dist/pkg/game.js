@@ -114,7 +114,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
-  hudRects: [],
+  hudRects: [], idleT: 0,
 };
 
 const keys = Object.create(null);
@@ -462,7 +462,7 @@ const LEVELS = [
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0,
 };
 
 function loadLevel(i) {
@@ -601,6 +601,7 @@ function update(dt) {
 
   // horizontal input
   const want = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  if ((want !== 0 || queued.jump) && state.idleT > 6) { p.wake = 0.45; state.idleT = 0; }
   if (want !== 0) {
     p.vx += want * ACCEL * dt;
     p.facing = want;
@@ -640,16 +641,26 @@ function update(dt) {
   // animation
   p.animT += dt;
   const speed = Math.abs(p.vx);
+  p.wake = Math.max(0, p.wake - dt);
+
+  // stand still long enough and the cat lies down, then falls asleep
+  if (p.onGround && speed < 20 && p.attack <= 0 && p.wake <= 0 && !p.dead) state.idleT += dt;
+  else if (speed >= 20 || !p.onGround) state.idleT = 0;
+
   let anim = "idle";
-  if (p.attack > 0) anim = "bat";
+  if (p.wake > 0) anim = "stretch";
+  else if (p.attack > 0) anim = "bat";
   else if (!p.onGround) anim = "jump";
   else if (speed > 200) anim = "run";
   else if (speed > 20) anim = "walk";
+  else if (state.idleT > 14) anim = "sleep";
+  else if (state.idleT > 6) anim = "rest";
   if (anim !== p.anim) { p.anim = anim; p.animT = 0; }
   const fps = anim === "run" ? 15 : anim === "walk" ? 11 : anim === "bat" ? 16 : 6;
   const frames = ATLAS[state.setIndex === 0 ? "black" : "grey"][anim];
   if (anim === "jump") {
-    p.frame = p.vy < -120 ? 0 : p.vy > 200 ? 2 : 1;
+    const n = frames.length;
+    p.frame = p.vy < -250 ? 0 : p.vy < 0 ? Math.min(1, n - 1) : p.vy > 300 ? n - 1 : Math.max(1, n - 2);
   } else {
     p.frame = Math.floor(p.animT * fps) % frames.length;
   }

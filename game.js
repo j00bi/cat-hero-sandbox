@@ -699,7 +699,7 @@ function update(dt) {
   else if (p.chargeT > 0) anim = "charge";
   else if (p.attack > 0) anim = "bat";
   else if (!p.onGround) anim = "jump";
-  else if (speed > 200) anim = "run";
+  else if (speed > (p.anim === "run" ? 170 : 210)) anim = "run";
   else if (speed > 20) anim = "walk";
   else if (state.idleT > 14) anim = "sleep";
   else if (state.idleT > 6) anim = "rest";

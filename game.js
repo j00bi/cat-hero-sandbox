@@ -189,6 +189,7 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyK" && state.mode === "play") for (const en of world.enemies) en.alive = false;
     if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
     if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
+    if (e.code === "KeyR") loadLevel(state.level);
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
@@ -475,6 +476,18 @@ const LEVELS = [
     goal: { x: 600, y: 470 },
     decor: [],
   },
+  {
+    world: "DEV", name: "SANDBOX",
+    width: 2560,
+    spawn: { x: 620, y: 380 },
+    sandbox: true,
+    grid: true,
+    solids: [rect(0, 470, 2560, 90)],
+    coins: [],
+    enemies: [],
+    goal: null,
+    decor: [],
+  },
 ];
 
 /* ---------------------------------------------------------------- player */
@@ -497,9 +510,9 @@ function loadLevel(i) {
     x: e.x, y: 0, w: 40, h: 28, min: e.min, max: e.max,
     vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0,
   }));
-  world.goalDef = L.goal;
-  // In the boss room the cushion only appears once the Dust King coughs it up.
-  world.goal = L.boss ? null : { x: L.goal.x, y: L.goal.y, t: 0 };
+  world.goalDef = L.goal || null;
+  // In the boss room (and the sandbox) there is no cushion until something creates one.
+  world.goal = (L.boss || !L.goal) ? null : { x: L.goal.x, y: L.goal.y, t: 0 };
   world.boss = L.boss ? makeBoss(L) : null;
   world.plats = (L.platforms || []).map((q) => ({
     x: q.x, y: q.y, w: q.w, h: q.h, ox: q.x, oy: q.y,
@@ -1595,10 +1608,14 @@ function render() {
   ctx.save();
   ctx.translate(Math.round(ox), Math.round(oy));
 
-  drawSky();
-  drawWater();
-  drawDecor();
-  drawSolids();
+  if (world.level && world.level.sandbox) {
+    drawSandboxBackdrop();
+  } else {
+    drawSky();
+    drawWater();
+    drawDecor();
+    drawSolids();
+  }
   drawPlatforms();
   drawGoal();
   for (const c of world.coins) if (!c.got) drawCoin(c);
@@ -1640,6 +1657,48 @@ function render() {
     text(`FISH ${state.fish}`, W / 2, cy + 300, 3, C.goldDeep, "center");
     text("ENTER TO PLAY AGAIN", W / 2, cy + 348, 1, C.paperEdge, "center");
   }
+}
+
+function drawSandboxBackdrop() {
+  // neutral dark stage: nothing to mistake for level content
+  ctx.fillStyle = "#202e37";
+  ctx.fillRect(0, 0, W, H);
+
+  const cam = world.cam;
+  ctx.strokeStyle = "rgba(255,255,255,0.07)";
+  ctx.lineWidth = 1;
+  const x0 = Math.floor(cam / 32) * 32;
+  for (let x = x0; x < cam + W + 32; x += 32) {
+    const sx = Math.round(x - cam) + 0.5;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 32) {
+    ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke();
+  }
+
+  // floor slab, 32 px grid aligned
+  const fy = 470;
+  ctx.fillStyle = "#10141f";
+  ctx.fillRect(0, fy, W, H - fy);
+  ctx.strokeStyle = "rgba(255,255,255,0.25)";
+  ctx.beginPath(); ctx.moveTo(0, fy + 0.5); ctx.lineTo(W, fy + 0.5); ctx.stroke();
+}
+
+function drawGrid() {
+  const cam = world.cam;
+  ctx.strokeStyle = "rgba(255,255,255,0.10)";
+  ctx.lineWidth = 1;
+  const x0 = Math.floor(cam / 32) * 32;
+  for (let x = x0; x < cam + W + 32; x += 32) {
+    const sx = Math.round(x - cam) + 0.5;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += 32) {
+    ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke();
+  }
+  // floor line, so jump height reads against something
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  ctx.beginPath(); ctx.moveTo(0, 470.5); ctx.lineTo(W, 470.5); ctx.stroke();
 }
 
 function drawDev() {
@@ -1716,6 +1775,10 @@ function toggleMute() {
 }
 
 function boot() {
+  if (DEV) {
+    const idx = LEVELS.findIndex((L) => L.sandbox);
+    if (idx >= 0) { state.level = idx; state.lives = 3; loadLevel(idx); }
+  }
   try { state.muted = localStorage.getItem("cath hero muted") === "1"; } catch (e) { }
   ATLAS = window.__CAT_ATLAS__;
   fit();

@@ -2,7 +2,8 @@
 
 A separate deployment for prototyping mechanics without touching the stable build.
 
-- **Sandbox:** https://j00bi.github.io/cat-hero-sandbox/?dev=1
+- **Sandbox:** https://j00bi.github.io/cat-hero-sandbox/?dev=1 — boots straight into an empty
+  32 px grid stage, no rooms, no enemies, no goal.
 - **Stable:** https://j00bi.github.io/cat-hero-restyle/
 
 Same code, two entry URLs. Without `?dev=1` the sandbox behaves exactly like the stable game —
@@ -21,12 +22,17 @@ The panel sits bottom-left and lists its own keys.
 | `K` | Kill every enemy in the room |
 | `T` | Teleport to the room's goal |
 | `L` | Jump to the next room |
+| `R` | Reload the sandbox room (resets everything) |
 | `` ` `` | Hide the overlay (tools stay active) |
 
 The overlay also shows live `anim #frame`, `vy`, `pos` and `ground`, which is how you tell a
 physics bug from an animation bug.
 
 ## Adding a mechanic
+
+The sandbox stage is a normal level entry with `sandbox: true` and `grid: true` at the end of
+`LEVELS` — it has a floor, an empty grid and no goal, so nothing to clear or complete. Add
+solids to it `rect(x, y, w, h)` to build test geometry.
 
 Everything is data plus one update loop, so a mechanic usually touches three places:
 

@@ -452,3 +452,54 @@ anti-aliasing, blur, second cat, extra legs, sparkles
 - more than one pose among the four
 - any frame taller or wider than the others
 - anything drawn on the ground under the cat
+
+---
+
+# FULL POSE — the standing base, derived from the loaf reference
+
+`spec/ref-cat-loaf.png` is now the identity anchor: it is the cleanest drawing we have
+(correct markings, correct stub tail, good face). The animation rows need the same cat
+**standing in full side profile**, so generate three attempts of that one pose and pick the best.
+
+Attach `spec/ref-cat-loaf.png` to the prompt.
+
+<prompt>
+STRICT SPEC. Follow every line. Do not add anything not listed.
+
+REFERENCE: the attached image is the same cat. Match its head shape, ear shape, markings,
+proportions and outline weight exactly. It is lying down; you will draw it standing.
+
+SUBJECT: chunky tuxedo cat — black head, black back and rump, white bib running from the chin
+to the belly, white muzzle, white paws (all four), amber eye, small pink-brown inner ear,
+big round head, short legs, compact body.
+
+POSE: standing, side profile, facing right, full body visible, all four paws on the ground and
+separated clearly, head up and level, eyes open, calm expression, back roughly horizontal.
+
+TAIL: short stub only — a small rounded tuft at the rump, no longer than the hind paw.
+Never long, never curved around the body, never raised in a hook.
+
+OUTPUT: three separate attempts of the SAME pose in one horizontal row, evenly spaced,
+identical scale. The cat fills about 75% of the frame height.
+
+STYLE: pixel art, 16-bit. 1 px dark outline. Flat fills, two shading steps. No anti-aliasing,
+no gradients, no shadows, no texture.
+
+BACKGROUND: flat cream #e7d5b3 edge to edge.
+
+FORBIDDEN: text, numbers, labels, boxes, borders, ground line, shadow, second cat, extra legs,
+long tail, accessories, clothing.
+</prompt>
+
+Negative prompt:
+```
+long tail, curled tail, raised tail hook, ground line, shadow, box, border, text, numbers,
+sitting, lying down, curled up, three-quarter view, front view, second cat, extra legs
+```
+
+## Pick the reference on these
+
+- four paws clearly separated, not merged into a blob
+- white bib reads as a continuous shape from chin to belly
+- head up, eye level, same ear size as the loaf reference
+- no long tail — the rump ends in a stub

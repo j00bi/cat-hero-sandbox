@@ -408,3 +408,47 @@ No tail shape, no tail tip, no arc along the back or around the body.
 
 A curled bobtail cat genuinely shows no tail from the side, so this is the honest drawing.
 Regenerating with that line is cheaper and cleaner than retouching fused pixels.
+
+---
+
+# SLEEP CURL v3 — strict, tail invisible
+
+<prompt>
+STRICT SPEC. Follow every line. Do not add anything that is not listed.
+
+SUBJECT: a chunky tuxedo cat — black coat, white bib, white muzzle, white paws, amber eye,
+big round head, short legs. Identical to the attached reference.
+
+STYLE: pixel art, 16-bit. 1 px dark outline everywhere. Flat colour fills only. Two shading
+steps maximum. No anti-aliasing. No gradients. No shadows. No texture. No dithering.
+
+LAYOUT: exactly 4 frames in one horizontal row. Evenly spaced. All four frames are the SAME
+pose — the cat curled up asleep, side view, facing right. Only the breathing differs: chest
+one pixel fuller, head tilted one or two pixels. Eyes closed in all four.
+
+COMPOSITION: the cat is a compact oval filling the frame. Head tucked down against the chest,
+front paws folded under the chin, hind legs tucked, back rounded.
+
+TAIL: THE TAIL IS NOT VISIBLE. It is tucked completely behind the body and hidden from view.
+Do not draw a tail. Do not draw a tail tip. Do not draw an arc, curve, ring, loop or line
+around or under the body. The rear of the cat is a smooth rounded rump with no tail attached.
+
+BACKGROUND: flat cream #e7d5b3, edge to edge, covering the whole image.
+
+FORBIDDEN: text, numbers, labels, boxes, borders, grid lines, ground line, horizon, shadows,
+tail of any kind, second cat, extra limbs, props, sparkles, motion lines.
+</prompt>
+
+Negative prompt, if available:
+```
+tail, long tail, tail tip, tail arc, tail ring, tail wrap, curved line around body,
+ground line, horizon, box, border, grid, text, numbers, labels, shadow, gradient,
+anti-aliasing, blur, second cat, extra legs, sparkles
+```
+
+## Reject on sight
+
+- any curved line running under, behind or around the body — that is the tail
+- more than one pose among the four
+- any frame taller or wider than the others
+- anything drawn on the ground under the cat

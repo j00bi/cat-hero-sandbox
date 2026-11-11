@@ -197,3 +197,40 @@ ball, no frame is standing upright.
 
 If a leap is what you actually want, keep it — but that belongs in the 4-frame JUMP row, and
 the run should stay a cycle.
+
+---
+
+# WALK — upright, leisurely (differentiates from the run)
+
+The run is a low, level trot. The walk must read as a different gait or the two animations look
+identical at 11 vs 15 fps. Ask for upright posture, head high, tail up, short steps.
+
+<prompt>
+Same cat as the attached reference. Pixel art sprite sheet, 16-bit style, 1 px dark outline,
+flat fills, 2-step shading, no anti-aliasing, no motion blur, no speed lines, no shadows,
+no gradients.
+
+Exactly 8 frames in one horizontal row, evenly spaced. Identical scale and zoom in every
+frame — body length, head size and leg length must not change between poses.
+Cream background #e7d5b3 edge to edge. No text, no numbers, no boxes, no ground line.
+
+This is a relaxed WALK, not a trot and not a jump. The cat is upright, head held high, tail
+raised and slightly curved, chest open. Steps are short — a front paw lands roughly under the
+chin, not stretched far forward. At least one paw is always planted. Body height stays level;
+no bounding, no crouching, no airborne frames.
+
+1 front-left paw forward and planted, rear-right paw lifting
+2 both front paws down, body at its lowest
+3 rear-left paw swinging forward under the body
+4 body at its highest, front-right paw reaching forward
+5 front-right paw forward and planted, rear-left paw lifting
+6 both front paws down, body at its lowest
+7 rear-right paw swinging forward under the body
+8 body at its highest, front-left paw reaching forward
+</prompt>
+
+## Check on return
+
+- Upright and taller than the run row — if it looks like the run, reject it, that's the whole point
+- One paw always on the ground
+- Same cat, same tail carriage, same scale across all eight

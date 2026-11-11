@@ -26,9 +26,9 @@ Status as of 2026-11-10. ✅ done · 🟡 partial · ⬜ not started · ❓ deci
 | 🟡 | Tuxedo sheet (first attempt) | exists but 6-frame rows, motion blur, drawn rules, weak swipe |
 | ✅ | Tuxedo **walk** — 8 frames, upright | `out/walk-v1-atlas.png` (accepted) |
 | ✅ | Tuxedo **run** — 8 frames, fast trot | `out/run-v3-atlas.png` (v3 accepted) |
-| ⬜ | Tuxedo **jump** — 4 frames | regenerate (drop the arc line) |
-| ⬜ | Tuxedo **swipe** — 4 frames | regenerate (no slash streaks, no tongue) |
-| ⬜ | Tuxedo **specials** — 4 frames | regenerate (order: curl, play, stretch, yawn) |
+| ✅ | Tuxedo **jump** — 4 frames | `out/jump-v1-atlas.png` (accepted) |
+| 🟡 | Tuxedo **swipe** — 4 frames | `out/swipe-v1-atlas.png` — paw reads as a bar, re-roll |
+| ✅ | Tuxedo **specials** — 4 frames | `out/specials-v1-atlas.png` (accepted) |
 | ⬜ | Grey twin — 28 frames | after tuxedo is approved |
 | ⬜ | `cat-atlas.png` + `cat-atlas.json` | export from approved rows |
 

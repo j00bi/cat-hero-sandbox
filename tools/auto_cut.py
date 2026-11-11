@@ -158,13 +158,20 @@ def main():
     sheet = Image.new("RGBA", (cols * CELL, len(rows) * CELL), (0, 0, 0, 0))
 
     for ry, row in enumerate(rows):
-        for cx, box in enumerate(row["boxes"]):
+        # one scale per row: scaling each frame to its own box makes a crouch smaller
+        # than a stretch and a sitting cat smaller than a standing one.
+        bodies = []
+        for box in row["boxes"]:
             body = im.crop(box)
             bbox = body.getbbox()
-            if not bbox:
+            bodies.append(body.crop(bbox) if bbox else None)
+        sized = [b for b in bodies if b]
+        row_k = min([min(MAX_W / b.width, MAX_H / b.height, 1.0) for b in sized] or [1.0])
+
+        for cx, body in enumerate(bodies):
+            if body is None:
                 continue
-            body = body.crop(bbox)
-            k = min(MAX_W / body.width, MAX_H / body.height, 1.0)
+            k = row_k
             body = body.resize((max(1, int(body.width * k)), max(1, int(body.height * k))), Image.LANCZOS)
             cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
             cell.paste(body, ((CELL - body.width) // 2, CELL - FOOT - body.height), body)

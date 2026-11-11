@@ -28,7 +28,7 @@ Status as of 2026-11-10. ✅ done · 🟡 partial · ⬜ not started · ❓ deci
 | ✅ | Tuxedo **run** — 8 frames, fast trot | `out/run-v3-atlas.png` (v3 accepted) |
 | ✅ | Tuxedo **jump** — 4 frames | `out/jump-v1-atlas.png` (accepted) |
 | 🟡 | Tuxedo **swipe** — 4 frames | `out/swipe-v1-atlas.png` — paw reads as a bar, re-roll |
-| ✅ | Tuxedo **specials** — 4 frames | `out/specials-v1-atlas.png` (accepted) |
+| ✅ | Tuxedo **specials** — 4 frames | `out/specials-v1-atlas.png`; sleep rebuilt as 2-frame breathing loop |
 | ⬜ | Grey twin — 28 frames | after tuxedo is approved |
 | ⬜ | `cat-atlas.png` + `cat-atlas.json` | export from approved rows |
 

@@ -42,16 +42,41 @@ def nearest(p):
 
 
 def keyed(path, fuzz):
+    """Key the background by flood-filling inward from the border.
+
+    A plain colour-distance key eats white fur when the backdrop is a light cream —
+    the two are only ~55 apart. Border-connected filling keeps interior whites.
+    """
+    from collections import deque
+
     im = Image.open(path).convert("RGBA")
     px = im.load()
     w, h = im.size
     bg = Counter([im.getpixel(p)[:3] for p in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]]).most_common(1)[0][0]
+
+    def close(c):
+        return abs(c[0] - bg[0]) + abs(c[1] - bg[1]) + abs(c[2] - bg[2]) <= fuzz
+
+    seen = [[False] * w for _ in range(h)]
+    q = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            if close(px[x, y]) and not seen[y][x]:
+                seen[y][x] = True; q.append((x, y))
     for y in range(h):
-        for x in range(w):
-            r, g, b, _ = px[x, y]
-            if abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2]) <= fuzz:
-                px[x, y] = (0, 0, 0, 0)
-    # drop horizontal rules: any row containing one long continuous ink run
+        for x in (0, w - 1):
+            if close(px[x, y]) and not seen[y][x]:
+                seen[y][x] = True; q.append((x, y))
+
+    while q:
+        x, y = q.popleft()
+        px[x, y] = (0, 0, 0, 0)
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny][nx] and close(px[nx, ny]):
+                seen[ny][nx] = True
+                q.append((nx, ny))
+
+    # drop long horizontal rules
     for y in range(h):
         best = run = 0
         for x in range(w):
@@ -60,7 +85,7 @@ def keyed(path, fuzz):
                 best = max(best, run)
             else:
                 run = 0
-        if best > w * 0.22:          # a rule, not a cat
+        if best > w * 0.22:
             for yy in (y - 1, y, y + 1):
                 if 0 <= yy < h:
                     for x in range(w):

@@ -79,6 +79,7 @@ const FONT = {
   ":":["00000","00100","00100","00000","00100","00100","00000"],
   "!":["00100","00100","00100","00100","00100","00000","00100"],
   ".":["00000","00000","00000","00000","00000","00110","00110"],
+  ",":["00000","00000","00000","00000","00110","00110","01100"],
   "-":["00000","00000","00000","11111","00000","00000","00000"],
   "+":["00000","00100","00100","11111","00100","00100","00000"],
   "/":["00001","00010","00010","00100","01000","01000","10000"],
@@ -129,11 +130,15 @@ powerIcons[0].src = "assets/icons/power0.png";
 powerIcons[1].src = "assets/icons/power1.png";
 powerIcons[2].src = "assets/icons/power2.png";
 let ATLAS = null;
+/* The story photo (assets/story/pet.png) is not shipped yet; drawCard falls back
+   to a code-drawn night room. Drop the file in and set it here to use it. */
+let storyImg = null;
 
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
   hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null, burstT: 0, hitstop: 0, decalT: 0, decalX: 0, decalY: 0,
+  card: null,
 };
 
 /* ---------------------------------------------------------------- sandbox */
@@ -296,35 +301,30 @@ function line(x, y, n, dx = 40) {
   return Array.from({ length: n }, (_, i) => ({ x: x + i * dx, y }));
 }
 
-const LEVELS = [
+const LEVELS_ALL = [
   {
-    world: "1-1", name: "MEADOW FIELDS",
+    world: "2-1", name: "BACKYARD",
     power: 0,
-    width: 2600,
+    width: 1500,
     spawn: { x: 80, y: 380 },
     solids: [
-      rect(0, 470, 900, 90), rect(980, 470, 700, 90), rect(1780, 470, 820, 90),
+      rect(0, 470, 900, 90), rect(980, 470, 520, 90),
       rect(420, 380, 180, 26), rect(640, 300, 140, 26), rect(1100, 370, 190, 26),
-      rect(1340, 290, 150, 26), rect(1560, 300, 140, 26), rect(1960, 372, 220, 26),
-      rect(2200, 290, 160, 26),
+      rect(1340, 290, 150, 26),
     ],
     coins: [
       ...arc(300, 400, 5), ...arc(700, 404, 5),
       ...line(440, 336, 4), ...line(660, 256, 3), ...line(1120, 326, 4),
-      ...line(1360, 246, 3), ...line(1580, 256, 3), ...line(1980, 328, 4),
-      ...line(2220, 246, 4), ...arc(1000, 404, 5),
+      ...line(1360, 246, 3),
     ],
     enemies: [
       { x: 620, min: 520, max: 860 },
-      { x: 1180, min: 1000, max: 1460 },
-      { x: 2020, min: 1800, max: 2400 },
     ],
-    goal: { x: 2470, y: 470 },
+    goal: { x: 1400, y: 470 },
     decor: [
       { t: "sign", x: 132 }, { t: "tree", x: 250 }, { t: "bush", x: 360 },
       { t: "tree", x: 700 }, { t: "bush", x: 840 }, { t: "tree", x: 1150 },
-      { t: "bush", x: 1420 }, { t: "tree", x: 1900 }, { t: "bush", x: 2100 },
-      { t: "tree", x: 2330, s: 0.85 },
+      { t: "vacuum_bg", x: 1050 },
     ],
   },
   {
@@ -439,7 +439,7 @@ const LEVELS = [
     ],
   },
   {
-    world: "1-5", name: "THE OLD MILL",
+    world: "2-2", name: "THE CLIMB",
     power: 0,
     width: 3400,
     spawn: { x: 70, y: 380 },
@@ -518,7 +518,7 @@ const LEVELS = [
     ],
   },
   {
-    world: "1-7", name: "THE DEN",
+    world: "2-5", name: "THE DEN",
     power: 2,
     width: 1200,
     spawn: { x: 90, y: 380 },
@@ -548,6 +548,33 @@ const LEVELS = [
   },
 ];
 
+/* The demo is five stages. The old 1-x rooms stay playable in code but are out
+   of the progression — they are the post-jam extended mode. */
+const LEVELS_EXTRA = LEVELS_ALL.filter((L) => ["1-2", "1-3", "1-4", "1-6"].includes(L.world));
+
+const LEVELS = [
+  LEVELS_ALL.find((L) => L.world === "2-1"),
+  // THE CLIMB is the Old Mill room: two of its three platforms are vertical
+  // lifts, so the route is an actual climb, with one horizontal traverse in
+  // the middle to break the rhythm.
+  LEVELS_ALL.find((L) => L.world === "2-2"),
+  {
+    world: "2-3", name: "DUST BIN", placeholder: true, ray: true, dark: true,
+    theme: "bin", hint: "Hold SHIFT to light the way", chargeRate: 95,
+    width: 960, spawn: { x: 64, y: 380 },
+    solids: [], coins: [], enemies: [], goal: null, decor: [],
+  },
+  {
+    world: "2-4", name: "THE MOTOR", placeholder: true, ray: true, dark: false,
+    theme: "motor", chargeRate: 95,
+    width: 960, spawn: { x: 64, y: 380 },
+    solids: [], coins: [], enemies: [], goal: null, decor: [],
+  },
+  LEVELS_ALL.find((L) => L.world === "2-5"),
+  LEVELS_ALL.find((L) => L.sandbox),
+];
+const DEMO_COUNT = 5;
+
 /* ---------------------------------------------------------------- player */
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
@@ -557,6 +584,20 @@ const player = {
 
 function loadLevel(i) {
   const L = LEVELS[i];
+  if (L.placeholder) {                 // ray stages are stubs until phase 3
+    world.level = L; world.boss = null; world.goalDef = null; world.goal = null;
+    world.coins = []; world.enemies = []; world.plats = []; world.particles.length = 0;
+    world.total = 0; world.got = 0; state.totalCoins = 0; state.coins = 0;
+    world.vac = null;
+    player.x = L.spawn.x; player.y = L.spawn.y;
+    player.spawnX = L.spawn.x; player.spawnY = L.spawn.y;
+    player.vx = player.vy = 0; player.dead = false; player.charging = false;
+    state.idleT = 0;
+    paused = false;
+    state.mode = "clear";
+    document.body.classList.add("playing");
+    return;
+  }
   player.x = L.spawn.x; player.y = L.spawn.y;
   player.spawnX = L.spawn.x; player.spawnY = L.spawn.y;
   player.vx = player.vy = 0; player.facing = 1; player.dead = false;
@@ -584,6 +625,10 @@ function loadLevel(i) {
   state.totalCoins = L.coins.length;
   state.coins = 0;
   state.powerId = L.power ?? 0;
+  state.idleT = 0;
+  const vd = (L.decor || []).find((d) => d.t === "vacuum_bg");
+  world.vac = vd ? { trigger: vd.x, toyX: vd.x + 220, toyEaten: false,
+                     started: false, done: false, t: 0, x: 0 } : null;
   paused = false;
   state.mode = "play";
   document.body.classList.add("playing");
@@ -591,7 +636,7 @@ function loadLevel(i) {
 
 const world = {
   level: null, coins: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
-  goal: null, time: 0, checkpoint: 0, plats: [], boss: null, goalDef: null,
+  goal: null, time: 0, checkpoint: 0, plats: [], boss: null, goalDef: null, vac: null,
 };
 
 /* ------------------------------------------------------------- collision */
@@ -676,6 +721,7 @@ function dust(x, y, n) {
 function update(dt) {
   state.t += dt;
   if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
+  if (state.mode === "card" && state.card) { state.card.t += dt; return; }
   if (state.mode !== "play" || paused) { updateParticles(dt); return; }
 
   const p = player;
@@ -838,6 +884,8 @@ function update(dt) {
     state.mode = "clear"; sfx.win(); state.shake = 6;
     burst(world.goal.x, world.goal.y - 40, 30, C.goldWarm);
   }
+
+  updateVacuum(dt);
 
   // camera
   const target = Math.max(0, Math.min(p.x + p.w / 2 - W * 0.42, world.level.width - W));
@@ -1006,6 +1054,23 @@ function killBoss() {
   sfx.bossDie();
   burst(b.x + b.w / 2, b.y + b.h / 2, 40, "#AD7757");
   burst(b.x + b.w / 2, b.y + b.h / 2, 24, C.bossSpark);
+}
+
+function updateVacuum(dt) {
+  const v = world.vac;
+  if (!v || v.done) return;
+  if (!v.started) {
+    if (player.x > v.trigger) { v.started = true; v.x = world.cam + W + 140; v.t = 0; }
+    return;
+  }
+  v.t += dt;
+  v.x -= 500 * dt;
+  if (!v.toyEaten && v.x < v.toyX) {
+    v.toyEaten = true;
+    beep(220, 0.15, "sawtooth", 0.05, 90);
+    burst(v.toyX, 452, 10, C.goldWarm);
+  }
+  if (v.t >= 3) v.done = true;
 }
 
 function updateBoss(dt) {
@@ -1476,11 +1541,17 @@ function drawSleepingCat(baseX, groundY) {
   }
 }
 
-function drawBoss() {
-  const b = world.boss;
+function drawRoomba(b, scale = 1, dim = 0) {
   if (!b) return;
   const x = Math.round(b.x - world.cam), y = Math.round(b.y);
   const cx = x + b.w / 2, cy = y + b.h / 2;
+  ctx.save();
+  if (scale !== 1) {                       // keep the wheels on the same ground line
+    ctx.translate(cx, y + b.h);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -(y + b.h));
+  }
+  if (dim > 0) ctx.filter = `brightness(${(1 - dim).toFixed(2)})`;
 
   ctx.fillStyle = "rgba(8,18,26,0.25)";
   ctx.beginPath(); ctx.ellipse(cx, y + b.h - 2, b.w * 0.48, 9, 0, 0, 7); ctx.fill();
@@ -1494,6 +1565,7 @@ function drawBoss() {
       ctx.fillStyle = "rgba(180,170,150,0.5)";
       ctx.fillRect(cx - 30 + i * 22, cy - 14 - i * 6, 8, 8);
     }
+    ctx.restore();
     return;
   }
 
@@ -1544,6 +1616,31 @@ function drawBoss() {
       ctx.fillRect(Math.round(sx) - 3, Math.round(sy) - 3, 6, 6);
     }
   }
+  ctx.restore();
+}
+
+function drawBoss() { drawRoomba(world.boss); }
+
+function drawBall(wx) {
+  const x = Math.round(wx - world.cam), y = 456;
+  ctx.fillStyle = "rgba(9,10,20,0.25)";
+  ctx.beginPath(); ctx.ellipse(x, y + 12, 13, 5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = C.redDeep;
+  ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.fill();
+  ctx.fillStyle = C.red;
+  ctx.beginPath(); ctx.arc(x - 1, y - 1, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = C.gold;
+  ctx.fillRect(x - 10, y - 2, 20, 4);
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fillRect(x - 6, y - 7, 4, 3);
+}
+
+function drawVacuumBg() {
+  const v = world.vac;
+  if (!v || !v.started || v.done) return;
+  if (!v.toyEaten) drawBall(v.toyX);
+  drawRoomba({ x: v.x, y: 470 - 72, w: 104, h: 72, dir: -1, spin: state.t * 7,
+               state: "patrol", dead: false, flash: 0 }, 0.6, 0.5);
 }
 
 function drawPlayer() {
@@ -1857,6 +1954,70 @@ function drawSelect() {
   text("ARROWS OR TAP TO SWITCH    ENTER TO START", W / 2, 492, 1, C.ink, "center");
 }
 
+function showCard(lines, next, warm = false) {
+  state.card = { lines, i: 0, t: 0, next, warm };
+  state.mode = "card";
+  player.charging = false;
+  document.body.classList.add("playing");   // hide the key hint behind the card
+}
+
+const OPENING = [
+  "Be good, okay? I'm on the night shift.",
+  "Click. The door shuts. The house goes quiet...",
+  "...and the robot vacuum wakes up on its own.",
+];
+const ENDING = [
+  "Morning. The shift is over.",
+  "The floor is spotless. The vacuum is very, very quiet.",
+  "Who's a good cat?",
+];
+
+function startRun() {
+  state.level = 0; state.lives = 3; state.checkpoint = 0;
+  loadLevel(0);
+}
+
+function drawCard() {
+  const c = state.card;
+  if (!c) return;
+  ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H);
+
+  if (storyImg && storyImg.complete && storyImg.naturalWidth) {
+    const k = Math.max(1, Math.floor(Math.min(W / storyImg.width, H / storyImg.height)));
+    const iw = storyImg.width * k, ih = storyImg.height * k;
+    ctx.drawImage(storyImg, (W - iw) / 2, (H - ih) / 2, iw, ih);
+  } else {
+    // placeholder night room: a door of hallway light, cat silhouette waiting
+    const g = ctx.createRadialGradient(W * 0.5, H * 0.42, 30, W * 0.5, H * 0.42, 440);
+    g.addColorStop(0, "rgba(115,190,211,0.22)");
+    g.addColorStop(1, "rgba(9,10,20,0)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = C.ink; ctx.fillRect(W * 0.5 - 116, 58, 232, 374);
+    ctx.fillStyle = C.waterDeep; ctx.fillRect(W * 0.5 - 100, 74, 200, 342);
+    ctx.fillStyle = C.water; ctx.fillRect(W * 0.5 - 100, 74, 84, 342);
+    ctx.fillStyle = "rgba(9,10,20,0.55)"; ctx.fillRect(W * 0.5 - 30, 386, 60, 46);
+    ctx.fillStyle = C.bossShell;
+    ctx.beginPath(); ctx.ellipse(W * 0.5, 438, 34, 20, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = C.bossEye; ctx.fillRect(W * 0.5 - 18, 428, 5, 5);
+    ctx.fillRect(W * 0.5 + 14, 428, 5, 5);
+  }
+
+  if (c.warm) {
+    ctx.globalCompositeOperation = "multiply";
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = C.goldWarm; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  ctx.fillStyle = "rgba(9,10,20,0.86)"; ctx.fillRect(0, H - 92, W, 92);
+  ctx.fillStyle = C.paperEdge; ctx.fillRect(0, H - 92, W, 2);
+  const line = c.lines[c.i];
+  const chars = Math.min(line.length, Math.floor(c.t * 40));
+  text(line.slice(0, chars), 40, H - 62, 2, C.paper);
+  if (chars >= line.length && Math.sin(state.t * 4) > 0) text(">", W - 52, H - 40, 2, C.gold);
+}
+
 function drawOverlayCard(title, sub, color, stat) {
   ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
   const cw = 440, ch = stat ? 210 : 180, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
@@ -1872,6 +2033,7 @@ function render() {
 
   if (state.mode === "title") { drawTitle(); return; }
   if (state.mode === "select") { drawSelect(); return; }
+  if (state.mode === "card") { drawCard(); drawScreenFlash(); return; }
 
   const sh = state.shake;
   const ox = sh ? (Math.random() - 0.5) * sh : 0;
@@ -1884,6 +2046,7 @@ function render() {
   } else {
     drawSky();
     drawWater();
+    drawVacuumBg();
     drawDecor();
     drawSolids();
   }
@@ -1924,7 +2087,9 @@ function render() {
   drawDev();
 
   if (state.mode === "clear") {
-    drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
+    const L = world.level;
+    if (L && L.placeholder) drawOverlayCard(L.name, "UNDER CONSTRUCTION - ENTER", C.ink, L.world);
+    else drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
   }
   if (state.mode === "gameover") {
     drawOverlayCard("GAME OVER", "ENTER TO TRY AGAIN", C.redDeep, `FISH ${state.coins}`);
@@ -2274,11 +2439,16 @@ function frame(now) {
   if (queued.confirm) {
     queued.confirm = false;
     if (state.mode === "title") { state.mode = "select"; beep(660, 0.07, "square", 0.08); }
-    else if (state.mode === "select") { state.level = 0; state.lives = 3; state.checkpoint = 0; loadLevel(0); beep(880, 0.09, "square", 0.09); }
+    else if (state.mode === "select") { beep(880, 0.09, "square", 0.09); showCard(OPENING, startRun); }
+    else if (state.mode === "card" && state.card) {
+      const c = state.card, full = c.lines[c.i].length / 40;
+      if (c.t < full) c.t = full;                       // finish typing first
+      else if (c.i < c.lines.length - 1) { c.i++; c.t = 0; }
+      else { const next = c.next; state.card = null; next(); }
+    }
     else if (state.mode === "clear") {
-      state.level++;
-      if (state.level >= LEVELS.length) { state.mode = "win"; }
-      else { state.checkpoint = 0; loadLevel(state.level); }
+      if (state.level + 1 >= DEMO_COUNT) showCard(ENDING, () => { state.mode = "win"; }, true);
+      else { state.level++; state.checkpoint = 0; loadLevel(state.level); }
     } else if (state.mode === "gameover" || state.mode === "win") {
       state.mode = "title"; state.lives = 3; state.level = 0; state.coins = 0; state.fish = 0;
       document.body.classList.remove("playing");
@@ -2316,7 +2486,7 @@ function boot() {
   } catch (e) { }
   ATLAS = window.__CAT_ATLAS__;
   fit();
-  window.__GAME = { state, player, world, LEVELS, keys, queued, loadLevel };
+  window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel, showCard, OPENING, ENDING };
   requestAnimationFrame(frame);
 }
 

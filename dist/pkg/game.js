@@ -23,6 +23,7 @@ const C = {
   ink: "#090A14", paper: "#E7D5B3", paperShade: "#D7B594", paperEdge: "#C09473",
   // accents
   gold: "#E8C170", goldWarm: "#DE9E41", goldDeep: "#BE772B", red: "#A53030", redDeep: "#752438",
+  mist: "#819796",
   // text
   white: "#EBEDE9", textWarm: "#E7D5B3", textSand: "#D7B594", textDim: "rgba(235,237,233,0.66)",
   // surfaces
@@ -193,7 +194,10 @@ addEventListener("keydown", (e) => {
     keys[k] = true;
   }
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
-  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") startCharge();
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") {
+    if (state.mode === "play") e.preventDefault();   // Shift+arrows must not select text
+    if (!e.repeat) startCharge();
+  }
   if (DEV && e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
@@ -227,6 +231,16 @@ addEventListener("keyup", (e) => {
   const k = MAP[e.code]; if (k) keys[k] = false;
   if (e.code === "Enter" || e.code === "Space") keys.confirm = false;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") releaseCharge();
+});
+
+/* Losing focus mid-charge must cancel it without casting — otherwise the cat
+   casts when the player tabs back in, or is stuck crouched forever. */
+addEventListener("blur", () => {
+  for (const k in keys) keys[k] = false;
+  player.charging = false;
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) player.charging = false;
 });
 
 document.querySelectorAll("#touch button").forEach((b) => {
@@ -860,7 +874,11 @@ function startCharge() {
 function releaseCharge() {
   if (!player.charging) return;
   player.charging = false;
-  if (state.charge >= state.chargeMax) tryPower();   // release at full = cast
+  if (state.charge >= state.chargeMax) { tryPower(); return; }   // release at full = cast
+  if (state.charge > 20) {                                       // fizzle: keep the banked meter
+    beep(180, 0.08, "triangle", 0.07, 120);
+    burst(player.x + player.w / 2, player.y + player.h / 2, 6, C.mist);
+  }
 }
 
 function addCharge(n) {
@@ -1795,7 +1813,7 @@ function drawTitle() {
 
   // controls live here, not in the play band
   card(240, 436, 480, 42, 8);
-  text("ARROWS MOVE    Z JUMP    X PAW    P PAUSE", W / 2, 450, 1, C.ink, "center");
+  text("ARROWS MOVE   SPACE JUMP   J PAW   HOLD SHIFT = POWER", W / 2, 450, 1, C.ink, "center");
 }
 
 function drawSelect() {

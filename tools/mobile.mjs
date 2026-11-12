@@ -1,13 +1,14 @@
 /* Phone check: no keyboard at all — tap must start the game, touch buttons must move it. */
 import { chromium, devices } from "/home/husni/.hermes/node/lib/node_modules/playwright/index.mjs";
 
+const BASE = process.env.BASE || "http://127.0.0.1:8920";
 const browser = await chromium.launch({ executablePath: "/home/husni/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
 const ctx = await browser.newContext({ ...devices["iPhone 13"] });
 const page = await ctx.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 
-await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
+await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(400);
 

@@ -15,7 +15,7 @@ const report = await page.evaluate(() => {
     return 0;
   }
 
-  return LEVELS.filter((L) => !L.sandbox && !L.placeholder).map((L, li) => {
+  return LEVELS.filter((L) => !L.sandbox && !L.placeholder && !L.ray).map((L, li) => {
     const nodes = L.solids.filter((s) => s.w >= 40).map((s, i) => ({ ...s, i, key: i }));
     // A moving platform counts as every point on its travel path: you can board
     // it anywhere along the sweep and it carries you to the rest.

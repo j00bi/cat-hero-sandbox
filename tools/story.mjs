@@ -7,13 +7,14 @@ const OUT = new URL("../shots/", import.meta.url);
 fs.mkdirSync(OUT, { recursive: true });
 
 const errors = [];
+const BASE = process.env.BASE || "http://127.0.0.1:8920";
 const browser = await chromium.launch({ executablePath: "/home/husni/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
 const page = await browser.newPage({ viewport: { width: 1200, height: 760 }, deviceScaleFactor: 1 });
 page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("response", (r) => { if (r.status() >= 400) errors.push(`http ${r.status()} ${r.url()}`); });
 
-await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
+await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.waitForTimeout(300);
 
@@ -21,7 +22,7 @@ const snapshot = () => page.evaluate(() => {
   const { state, LEVELS, DEMO_COUNT, world } = window.__GAME;
   return { mode: state.mode, level: state.level, card: state.card ? { i: state.card.i, n: state.card.lines.length } : null,
            levels: LEVELS.length, demo: DEMO_COUNT, world: world.level ? world.level.name : null,
-           placeholder: !!(world.level && world.level.placeholder) };
+           ray: !!(world.level && world.level.ray), placeholder: !!(world.level && world.level.placeholder) };
 });
 const confirmUntil = async (mode, max = 16) => {
   for (let i = 0; i < max; i++) {
@@ -44,20 +45,19 @@ await page.screenshot({ path: new URL("12-story-opening.png", OUT).pathname });
 out.openingToPlay = await confirmUntil("play");
 out.atStage1 = await snapshot();
 
-// walk the actual progression: clear 1 -> climb, clear 2 -> dust bin stub,
-// confirm the two stubs, then clear the boss room into the ending card
+// Walk the actual progression. Ray stages are real rooms now, but this test
+// deliberately does not solve them: force "clear", then let Enter advance.
 const clearHere = async () => {
   await page.evaluate(() => { window.__GAME.state.mode = "clear"; });
   await page.waitForTimeout(120);
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(220);
+  await page.waitForTimeout(260);
   return snapshot();
 };
-out.stage2 = await clearHere();
-out.stage3 = await clearHere();
-out.stage3Confirm = await clearHere();
-out.stage4 = await clearHere();
-out.stage5 = await clearHere();
+out.stage2 = await clearHere();       // THE CLIMB loads
+out.stage3 = await clearHere();       // DUST BIN loads (ray)
+out.stage4 = await clearHere();       // THE MOTOR loads (ray)
+out.stage5 = await clearHere();       // THE DEN loads (boss)
 await page.evaluate(() => { window.__GAME.state.mode = "clear"; });
 await page.waitForTimeout(120);
 await page.keyboard.press("Enter");
@@ -73,9 +73,11 @@ out.checks = {
   openingToPlay: out.openingToPlay,
   stage1: out.atStage1.level === 0 && out.atStage1.world === "BACKYARD",
   stage2: out.stage2.level === 1 && out.stage2.world === "THE CLIMB" && out.stage2.mode === "play",
-  stub3: out.stage3.level === 2 && out.stage3.placeholder && out.stage3.mode === "clear",
-  stub4: out.stage3Confirm.level === 3 && out.stage3Confirm.placeholder && out.stage3Confirm.mode === "clear",
-  boss: out.stage4.level === 4 && out.stage4.world === "THE DEN" && out.stage4.mode === "play",
+  ray3: out.stage3.level === 2 && out.stage3.world === "DUST BIN"
+    && out.stage3.ray && out.stage3.mode === "play",
+  ray4: out.stage4.level === 3 && out.stage4.world === "THE MOTOR"
+    && out.stage4.ray && out.stage4.mode === "play",
+  boss: out.stage5.level === 4 && out.stage5.world === "THE DEN" && out.stage5.mode === "play",
   counts: out.start.levels === 6 && out.start.demo === 5,
   ending: out.ending.mode === "card" && out.ending.card.n === 3,
   endingToWin: out.endingToWin,
@@ -85,6 +87,7 @@ out.checks = {
 out.pass = out.checks.select
   && out.opening.mode === "card" && out.opening.card.n === 3
   && out.openingToPlay && out.atStage1.level === 0 && out.atStage1.world === "BACKYARD"
+  && out.checks.stage2 && out.checks.ray3 && out.checks.ray4 && out.checks.boss
   && out.start.levels === 6 && out.start.demo === 5
   && out.ending.mode === "card" && out.ending.card.n === 3
   && out.endingToWin && out.final.mode === "win"

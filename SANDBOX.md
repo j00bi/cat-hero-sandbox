@@ -47,14 +47,75 @@ Then, before you believe it works:
 node tools/test.mjs        # 14 gameplay assertions
 node tools/phase11.mjs     # Shift guard, blur cancel, fizzle
 node tools/reach.mjs       # every platform still reachable
-node tools/playthrough.mjs # autopilot clears all 6 rooms
+node tools/playthrough.mjs # autopilot clears the 2D stages
+node tools/ray.mjs         # Dust Bin + Motor first-person rooms
 node tools/mobile.mjs      # touch path still works
 node tools/boss.mjs        # the Dust King still works
 node tools/design.mjs      # HUD stays out of the play band
 ```
 
 `tools/playthrough.mjs` is the one that catches mechanics that accidentally make a room
-unfair — if a dumb bot holding right can't finish, a player will hit the same wall.
+unfair — if a dumb bot holding right can't finish, a player will hit the same wall. It
+skips the two ray rooms; `tools/ray.mjs` drives those.
+
+## Ray rooms
+
+DUST BIN (`2-3`) and THE MOTOR (`2-4`) are ordinary `LEVELS` entries with `ray: true`.
+`game.js` hands them to one `ray.js` instance at load/update/render and on charge release;
+hit them with `RAY.debugTeleport(x, y, dx, dy)` from the console.
+
+**Dust Bin** — dark; the light radius grows with charge. Three toys are tucked
+around the maze, and the exit door is on the right.
+
+```
+########
+#S..d..#
+#.##.#.#
+#..T.#T#
+##.#...#
+#..d.#.#
+#T##...D
+########
+```
+
+**The Motor** — lit; brush walls open/shut in a 1.2 s / 1.0 s cycle, the core sits
+in the middle, exhaust grill on the right.
+
+```
+#######
+#S.B..#
+#.#.#.#
+#..M..#
+#.#.#.#
+#..B.E#
+#######
+```
+
+| Tile | What it does |
+|---|---|
+| `#` / `d` | wall / dust pile (0.45 high, blocks sight) |
+| `D` | exit door — opens within 1.25 tiles, walk in to clear |
+| `B` | brush wall — open 1.2 s, shut 1.0 s, phase-offset per tile |
+| `T` | toy — +25 charge |
+| `M` | motor core — full charge within 1.7 tiles while facing it → blast → next stage |
+| `E` | exhaust grill (solid, glows) |
+| `S` | start (faces the longest corridor unless `face` is set) |
+
+Controls: `←`/`→` (or `A`/`D`) turn, `↑`/`W`/`Space`/`Z` walk forward,
+`↓`/`S`/`J`/`X` walk back, hold `Shift`/`C` to charge and release to cast.
+On touch, JUMP is forward, PAW is back and ⚡ is charge. Charge fills only while
+not walking forward/back; moving while charging is slowed to 35%.
+
+The charge layering inside ray rooms mirrors the 2D order: far sparks → paws →
+near sparks → arcs, drawn at 320×180 and upscaled 3× with smoothing off.
+
+```bash
+node tools/ray.mjs     # needs a server on :8920, or set BASE
+```
+
+It checks both room starts, the dust-bin door clear, a 100 % charge screenshot,
+fps while charging, the motor blast advancing to the boss, and a held JUMP on an
+iPhone viewport. Exits 0 only with no console/page errors.
 
 ## Icons from the sprite atlas
 

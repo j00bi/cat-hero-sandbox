@@ -61,7 +61,7 @@ const out = await page.evaluate(async () => {
   report.loads = [];
   for (let i = 0; i < G.LEVELS.length; i++) {
     G.loadLevel(i);
-    report.loads.push({ i, ok: G.world.level === G.LEVELS[i] && (G.world.level.sandbox || G.world.level.placeholder || G.world.coins.length > 0) });
+    report.loads.push({ i, ok: G.world.level === G.LEVELS[i] && (G.world.level.sandbox || G.world.level.ray || G.world.coins.length > 0) });
   }
   report.checks.allLoad = report.loads.every((l) => l.ok);
   return report;

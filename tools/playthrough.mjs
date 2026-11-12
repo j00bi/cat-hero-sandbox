@@ -1,19 +1,30 @@
-/* End-to-end proof that each level can actually be finished by a player:
-   an autopilot holds right, jumps at walls and gaps, swipes at robots. */
+/* End-to-end proof that each 2D level can actually be finished by a player:
+   an autopilot holds right, jumps at walls and gaps, swipes at robots.
+   Ray rooms (DUST BIN / THE MOTOR) are first-person and cannot be solved by
+   this 2D bot — they are covered by tools/ray.mjs and excluded here. */
 import { chromium } from "/home/husni/.hermes/node/lib/node_modules/playwright/index.mjs";
 
+const BASE = process.env.BASE || "http://127.0.0.1:8920";
 const browser = await chromium.launch({ executablePath: "/home/husni/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
 const page = await browser.newPage({ viewport: { width: 1200, height: 760 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
+await page.goto(BASE + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(300);
 
 const results = [];
 const levels = await page.evaluate(() => window.__GAME.LEVELS.map((L, i) => ({
-  i, name: L.name, boss: !!L.boss, sandbox: !!L.sandbox, placeholder: !!L.placeholder })));
-const platformLevels = levels.filter((L) => !L.boss && !L.sandbox && !L.placeholder);
+  i, name: L.name, boss: !!L.boss, sandbox: !!L.sandbox, placeholder: !!L.placeholder,
+  ray: !!L.ray, world: L.world })));
+const demo = levels.filter((L) => !L.sandbox);
+const rayLevels = demo.filter((L) => L.ray);
+const structure = {
+  demoCount: demo.length,
+  rayCount: rayLevels.length,
+  rayWorlds: rayLevels.map((L) => L.world),
+};
+const platformLevels = levels.filter((L) => !L.boss && !L.sandbox && !L.placeholder && !L.ray);
 for (const { i: lv } of platformLevels) {
   const r = await page.evaluate((level) => new Promise((resolve) => {
     const G = window.__GAME;
@@ -55,9 +66,16 @@ for (const { i: lv } of platformLevels) {
   if (r.mode !== "clear") await page.evaluate(() => { window.__GAME.state.mode = "title"; });
 }
 
-console.log(JSON.stringify(results, null, 1));
+console.log(JSON.stringify({ structure, results }, null, 1));
 console.log("errors:", errors);
 const ok = results.every((r) => r.mode === "clear");
-console.log(ok ? "PLAYTHROUGH: all levels cleared" : "PLAYTHROUGH: FAILED");
+const structureOk = structure.demoCount === 5
+  && structure.rayCount === 2
+  && structure.rayWorlds.join(",") === "2-3,2-4";
+console.log(ok ? "PLAYTHROUGH: all 2D levels cleared" : "PLAYTHROUGH: FAILED");
+console.log(structureOk
+  ? `PLAYTHROUGH: demo has ${structure.demoCount} stages (${structure.rayCount} ray)`
+  : `PLAYTHROUGH: wrong demo structure ${JSON.stringify(structure)}`);
+if (!structureOk) process.exitCode = 1;
 await browser.close();
-process.exit(ok && errors.length === 0 ? 0 : 1);
+process.exit((ok && structureOk && errors.length === 0) ? 0 : 1);

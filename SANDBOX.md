@@ -135,9 +135,32 @@ near sparks → arcs, drawn at 320×180 and upscaled 3× with smoothing off.
 node tools/ray.mjs     # needs a server on :8920, or set BASE
 ```
 
-It checks both room starts, the dust-bin door clear, a 100 % charge screenshot,
-fps while charging, the motor blast advancing to the boss, and a held JUMP on an
-iPhone viewport. Exits 0 only with no console/page errors.
+It checks both room starts, that all art loaded, the dust-bin door clear, a 100 %
+charge screenshot, the lit door, the motor core, fps while charging, the motor
+blast advancing to the boss, and a held JUMP on an iPhone viewport. Exits 0 only
+with no console/page errors.
+
+### Ray art
+
+All of the first-person art is supplied PNG, loaded once by `ray.js` and sampled
+per pixel into the 320×180 buffer (so lighting, depth and wall occlusion still apply):
+
+| Asset | Used for |
+|---|---|
+| `assets/ray/wall-metal.png` | clean metal panels (bin + motor walls) |
+| `assets/ray/wall-mold.png` | mouldy wall patches in the bin; also tints dust piles |
+| `assets/ray/wall-rust.png` | the motor room's rusted walls |
+| `assets/ray/wall-wet.png` | rain-streaked wall patches in the bin |
+| `assets/ray/door.png` | the `D` exit door, sliding up as it opens |
+| `assets/ray/vent.png` | the `E` exhaust grill |
+| `assets/ray/motor.png` | the `M` motor core sprite (magenta keyed out) |
+| `assets/paws.png` + `assets/paws.json` | first-person paws, 4 idle + 4 charge frames |
+
+Textures are 128×128 (motor 96×128) — one tile face never needs more at 320 px wide.
+Bin walls pick metal/mould/wet per cell from a hash so the maze does not look cloned.
+If an image has not loaded yet, the original code-drawn texture/paw is the fallback.
+The art is true-colour, deliberately **not** Apollo-quantised; the UI and 2D sprites
+keep the Apollo palette. `RAY.assets()` reports `{tex, paws}` readiness for tests.
 
 ## Icons from the sprite atlas
 

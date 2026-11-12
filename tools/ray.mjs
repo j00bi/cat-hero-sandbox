@@ -79,12 +79,21 @@ const load = (target) => page.evaluate((lv) => {
 await load(2);
 await page.waitForTimeout(450);
 out.dustStart = await snapshot();
+out.artLoaded = await page.waitForFunction(() => {
+  const a = window.__GAME.RAY.assets();
+  return a.tex >= 7 && a.paws;
+}, null, { timeout: 8000 }).then(() => true).catch(() => false);
 
 /* 2. Teleport next to the exit door, let it slide open, then walk forward
       (Space is "forward" in ray rooms) until the room clears. */
 await page.evaluate(() => window.__GAME.RAY.debugTeleport(6.3, 6.5, 1, 0));
 await page.waitForTimeout(1500);
 out.atDoor = await snapshot();
+await page.keyboard.down("ShiftLeft");        // light the door for the capture
+await page.waitForTimeout(700);
+await page.screenshot({ path: new URL("18-ray-door.png", OUT).pathname });
+await page.keyboard.up("ShiftLeft");
+await page.waitForTimeout(150);
 await page.keyboard.down("Space");
 out.doorCleared = await page.waitForFunction(
   () => window.__GAME.state.mode === "clear", null, { timeout: 6000 },
@@ -124,9 +133,11 @@ await page.keyboard.up("ShiftLeft");
 await load(3);
 await page.waitForTimeout(450);
 out.motorStart = await snapshot();
+await page.evaluate(() => { window.__GAME.RAY.debugTeleport(3.5, 4.7, 0, -1); });
+await page.waitForTimeout(350);
+await page.screenshot({ path: new URL("19-ray-motor-core.png", OUT).pathname });
 out.motorReleaseApi = await page.evaluate(() => {
   const G = window.__GAME;
-  G.RAY.debugTeleport(3.5, 4.7, 0, -1);
   G.state.charge = G.state.chargeMax;
   G.player.charging = true;
   if (typeof G.releaseCharge === "function") G.releaseCharge();
@@ -170,6 +181,9 @@ out.checks = {
     && near(out.dustStart.x, 1.5, 0.35) && near(out.dustStart.y, 1.5, 0.35),
   doorOpens: out.atDoor.doorOpen === true,
   doorClears: out.doorCleared && out.afterDoor.mode === "clear",
+  artLoaded: out.artLoaded,
+  doorScreenshot: fs.existsSync(new URL("18-ray-door.png", OUT)),
+  motorScreenshot: fs.existsSync(new URL("19-ray-motor-core.png", OUT)),
   chargeFull: out.charging.charge === 100,
   chargeScreenshot: fs.existsSync(new URL("15-ray-dustbin.png", OUT)),
   fps50: out.fps >= 50,

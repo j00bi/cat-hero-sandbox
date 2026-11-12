@@ -32,9 +32,43 @@
   };
   const rgb = {}; for (const k in AP) { const n = parseInt(AP[k].slice(1), 16); rgb[k] = [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 
+  // ---------- art assets (user-supplied) ----------
+  const TEX = {};
+  let pawsImg = null, pawsAtlas = null;
+  function loadTex(name, src, w, h) {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d"); g.imageSmoothingEnabled = true;
+      g.drawImage(im, 0, 0, w, h);
+      TEX[name] = { d: g.getImageData(0, 0, w, h).data, w, h };
+    };
+    im.onerror = () => { if (window.console) console.warn("ray art missing:", src); };
+    im.src = src;
+  }
+  loadTex("wall-metal", "assets/ray/wall-metal.png", 128, 128);
+  loadTex("wall-mold",  "assets/ray/wall-mold.png",  128, 128);
+  loadTex("wall-rust",  "assets/ray/wall-rust.png",  128, 128);
+  loadTex("wall-wet",   "assets/ray/wall-wet.png",   128, 128);
+  loadTex("door",       "assets/ray/door.png",       128, 128);
+  loadTex("vent",       "assets/ray/vent.png",       128, 128);
+  loadTex("motor",      "assets/ray/motor.png",       96, 128);
+  fetch("assets/paws.json").then((r) => r.json()).then((j) => {
+    pawsAtlas = j;
+    const im = new Image(); im.onload = () => { pawsImg = im; }; im.src = "assets/paws.png";
+  }).catch(() => { });
+  function sample(name, u, v) {
+    const t = TEX[name]; if (!t) return null;
+    let x = Math.floor(u * t.w); if (x < 0) x = 0; else if (x >= t.w) x = t.w - 1;
+    let y = Math.floor(v * t.h); if (y < 0) y = 0; else if (y >= t.h) y = t.h - 1;
+    const i = (y * t.w + x) * 4, d = t.d;
+    if (d[i + 3] < 96) return null;
+    return [d[i], d[i + 1], d[i + 2]];
+  }
+
   const THEMES = {
-    bin:   { floorA: rgb.slate, floorB: rgb.deep, line: rgb.night, ceil: rgb.night, wall: rgb.steel, mortar: rgb.slate, fog: rgb.ink },
-    motor: { floorA: rgb.rust, floorB: rgb.ember, line: rgb.ink, ceil: rgb.deep, wall: rgb.brown, mortar: rgb.rust, fog: rgb.ink },
+    bin:   { key: "bin", floorA: rgb.slate, floorB: rgb.deep, line: rgb.night, ceil: rgb.night, wall: rgb.steel, mortar: rgb.slate, fog: rgb.ink },
+    motor: { key: "motor", floorA: rgb.rust, floorB: rgb.ember, line: rgb.ink, ceil: rgb.deep, wall: rgb.brown, mortar: rgb.rust, fog: rgb.ink },
   };
   const TOY_COLS = [rgb.lime, rgb.grape, rgb.fog];
 
@@ -222,20 +256,34 @@
     // ---------- wall textures (u: 0–1 across the face, z: 0–1 up the wall) ----------
     function wallTex(k, u, z, mx, my) {
       if (k === "#") {
+        let c = null;
+        if (th.key === "motor") {
+          c = sample(hash(mx * 5 + 1, my * 3 + 2) < 0.8 ? "wall-rust" : "wall-metal", u, 1 - z);
+        } else {
+          const n = hash(mx * 7 + my * 13, mx * 3 + my * 5);
+          c = sample(n < 0.45 ? "wall-metal" : n < 0.8 ? "wall-mold" : "wall-wet", u, 1 - z);
+        }
+        if (c) return c;
         const row = Math.floor(z * 6), uu = u * 3 + (row & 1) * 0.5;
         if (z * 6 - row < 0.1 || uu - Math.floor(uu) < 0.05) return th.mortar;
         return hash(mx * 7 + Math.floor(uu), row + my * 13) < 0.15 ? rgb.sage : th.wall;
       }
       if (k === "d") {
+        const dc = sample("wall-mold", u, 1 - z);
+        if (dc) return [Math.min(255, dc[0] * 1.15), Math.min(255, dc[1] * 1.15), Math.min(255, dc[2] * 1.15)];
         const n = hash(Math.floor(u * 14) + mx * 31, Math.floor(z * 10) + my * 17);
         return z > 0.9 - n * 0.25 ? rgb.pale : n < 0.33 ? rgb.mist : n < 0.66 ? rgb.fog : rgb.sage;
       }
       if (k === "D") {
+        const dt = sample("door", u, 1 - z);
+        if (dt) return dt;
         if (u < 0.06 || u > 0.94) return rgb.slate;
         const s = (u * 6 + z * 6) % 2;
         return z < 0.14 ? (s < 1 ? rgb.gold : rgb.ink) : (Math.floor(z * 8) % 3 === 0 ? rgb.sage : rgb.mist);
       }
       if (k === "E") {
+        const vt = sample("vent", u, 1 - z);
+        if (vt) return vt;
         const slat = (z * 12) % 1;
         return slat < 0.45 ? (Math.sin(R.t * 4 + z * 9) > 0.3 ? rgb.orange : rgb.coral) : rgb.slate;
       }
@@ -299,7 +347,7 @@
           const yTop = hor - (h - CAMZ) * PROJ / d, yBot = hor + CAMZ * PROJ / d;
           if (h < 1) shorts[x].push({ d, yTop });
           const b = light(d) * (hitS[k] ? 0.75 : 1);
-          const emissive = kind === "E" ? 0.55 : 0;
+          const emissive = kind === "E" ? 0.8 : 0;
           const y0 = Math.max(0, Math.ceil(yTop)), y1 = Math.min(RH - 1, Math.floor(yBot));
           for (let y = y0; y <= y1; y++) {
             const z = CAMZ + (hor - y) * d / PROJ;
@@ -337,10 +385,9 @@
             const v = (y - ya) / (yb - ya);
             let c = null;
             if (isM) {
-              const cu = Math.abs(u - 0.5) * 2; if (cu > 1) continue;
-              if (v < 0.08 || v > 0.92) c = rgb.slate;
-              else { const band = (Math.sin(v * 26 - R.t * 9) + 1) / 2; c = band > 0.55 ? (mp > 0.5 ? rgb.honey : rgb.gold) : (cu > 0.7 ? rgb.copper : rgb.orange); }
-              buf[y * RW + x] = px(c, 1 - cu * 0.4, 0);
+              const mt = sample("motor", u, v);
+              if (!mt) continue;
+              buf[y * RW + x] = px(mt, 0.62 + 0.38 * mp, player.charging ? 0.3 * q : 0);
               continue;
             }
             const du = u - 0.5, dv = v - 0.5;
@@ -380,7 +427,7 @@
     function drawPaws(q, hor) {
       const c = cx, bob = Math.abs(Math.sin(R.bob)) * 3, charging = player.charging;
       const jit = charging && q > 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0;
-      const P = [{ x: 104 + jit, y: RH - 16 + bob }, { x: 216 - jit, y: RH - 13 + bob }];
+      const P = [{ x: 128 + jit, y: RH - 16 + bob }, { x: 192 - jit, y: RH - 13 + bob }];
       if (charging || R.burst > 0) {
         const k = Math.max(q, R.burst > 0 ? 1 : 0);
         const g = c.createRadialGradient(RW / 2, RH, 0, RW / 2, RH, 50 + 80 * k);
@@ -397,15 +444,24 @@
       }
       const spark = (s) => { c.fillStyle = s.dep > 0 ? AP.white : AP.cyan; const r = s.dep > 0 ? 3 : 1; c.fillRect(Math.round(s.x) - (r >> 1), Math.round(s.y) - (r >> 1), r, r); };
       sparks.filter((s) => s.dep <= 0).forEach(spark);
-      P.forEach((p, i) => {
-        c.fillStyle = AP.ink; ell(c, p.x, p.y + 14, 25, 26);                         // black forearm
-        c.fillStyle = AP.night; ell(c, p.x, p.y + 16, 23, 24);
-        c.fillStyle = AP.ink; ell(c, p.x, p.y - 4, 21, 16);                          // white sock outline
-        c.fillStyle = AP.white; ell(c, p.x, p.y - 4, 19, 14);
-        c.fillStyle = AP.pale; ell(c, p.x + (i ? -6 : 6), p.y + 2, 10, 6);
-        c.fillStyle = AP.pink;
-        for (const [ox, oy] of [[-11, -12], [-4, -16], [4, -16], [11, -12]]) ell(c, p.x + ox, p.y + oy, 3, 2.5);
-      });
+      if (pawsImg && pawsAtlas) {
+        const set = (charging && pawsAtlas.charge) ? pawsAtlas.charge : pawsAtlas.idle;
+        const idx = charging ? Math.min(set.length - 1, Math.floor(q * set.length)) : ((R.t * 6 | 0) % set.length);
+        const f = set[idx];
+        c.imageSmoothingEnabled = false;
+        c.drawImage(pawsImg, f.x, f.y, f.w, f.h,
+          Math.round((RW - 84) / 2) + jit, Math.round(RH - 72 + bob), 84, 84);
+      } else {
+        P.forEach((p, i) => {
+          c.fillStyle = AP.ink; ell(c, p.x, p.y + 14, 25, 26);                         // black forearm
+          c.fillStyle = AP.night; ell(c, p.x, p.y + 16, 23, 24);
+          c.fillStyle = AP.ink; ell(c, p.x, p.y - 4, 21, 16);                          // white sock outline
+          c.fillStyle = AP.white; ell(c, p.x, p.y - 4, 19, 14);
+          c.fillStyle = AP.pale; ell(c, p.x + (i ? -6 : 6), p.y + 2, 10, 6);
+          c.fillStyle = AP.pink;
+          for (const [ox, oy] of [[-11, -12], [-4, -16], [4, -16], [11, -12]]) ell(c, p.x + ox, p.y + oy, 3, 2.5);
+        });
+      }
       sparks.filter((s) => s.dep > 0).forEach(spark);
       if (charging && q >= 0.4) {
         const n = q < 0.7 ? 1 : 3;
@@ -445,6 +501,7 @@
     return {
       enter, exit, update, render, release,
       get state() { return R; },              // debug / tests
+      assets: () => ({ tex: Object.keys(TEX).length, paws: !!(pawsImg && pawsAtlas) }),
       debugTeleport(x, y, dx, dy) { R.x = x; R.y = y; if (dx !== undefined) setDir(dx, dy); },
     };
   }

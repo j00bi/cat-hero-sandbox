@@ -79,12 +79,12 @@ sprite volume:
 | Order | Layer | What |
 |---|---|---|
 | 1 | ground glow | flattened additive ellipse under the feet |
-| 2 | ground decal | fading ring left at the launch point after a cast |
+| 2 | back arcs | bolts behind the hips and tail, partly hidden by the body |
 | 3 | back aura | soft radial glow behind the body |
 | 4 | charge sheet | pixelfx build frames, behind the cat |
-| 5 | orbit sparks (far half) | sparks whose `sin(angle) < 0` |
+| 5 | orbit sparks (far half) | `sin(angle) < 0`: small, dim blue, no trail |
 | 6 | **cat** | the held crouch |
-| 7 | orbit sparks (near half) | same sparks, `sin(angle) > 0` — bigger, brighter |
+| 7 | orbit sparks (near half) | `sin(angle) > 0`: 2x size, pure white core, one-frame trail |
 | 8 | front arcs | bolts radiating from the chest, crossing the body |
 | 9 | screen flash | white overlay on release |
 
@@ -100,7 +100,10 @@ Escalation is driven by one number, `chargeLevel()`:
 | 2 | 40–60% | all five sparks, back aura grows |
 | 3 | 60–100% | front arcs, sprite jitter, ground glow peaks |
 
-Release runs `hitstop 0.05s` → `flash` → burst frames → decal fade. The sprite also picks up
+Release runs `hitstop 0.05s` → `flash` → burst frames. Stage 3 also adds a 2 px shake
+rumble (never a fractional zoom — that shimmers on pixel art) and a rim light: the sprite's
+own silhouette, tinted cyan and drawn 1 px toward the bolts before the cat, so the body edge
+catches the charge without a shader. The sprite also picks up
 1 px random jitter that increases with the charge level, so the held pose never looks frozen.
 
 ## Charge FX (pixelfx)

@@ -109,6 +109,11 @@ function text(str, x, y, s = 2, color = "#10141F", align = "left") {
 
 /* ----------------------------------------------------------------- atlas */
 let atlasImg = new Image();
+const rimCanvas = document.createElement("canvas");
+rimCanvas.width = 96; rimCanvas.height = 96;
+const rimCtx = rimCanvas.getContext("2d");
+rimCtx.imageSmoothingEnabled = false;
+
 let fxImg = null, fxMeta = null, fxPivot = null;
 fetch("assets/fx/lightning-charge.json").then((r) => r.json()).then((m) => {
   fxMeta = m;
@@ -710,6 +715,8 @@ function update(dt) {
     if (Math.abs(p.vx) > 24 || !p.onGround) {   // moving cancels the crouch
       p.charging = false;
     } else {
+      const lv = state.charge / state.chargeMax;
+      if (lv > 0.6) state.shake = Math.max(state.shake, 1 + 1.5 * lv);   // 2px rumble
       state.charge = Math.min(state.chargeMax, state.charge + 95 * dt);
       p.chargeT = 0.05;               // keeps the crouch alive for the whole hold
     }
@@ -852,9 +859,6 @@ function castThunder() {
   state.shake = 8;
   state.hitstop = 0.05;
   state.flash = 0.9;
-  state.decalT = 1.0;
-  state.decalX = p.x + p.w / 2;
-  state.decalY = p.y + p.h;
   if (fxMeta) state.burstT = (fxMeta.frames - fxMeta.burstStart) / fxMeta.fps;
   sfx.thunder();
 }
@@ -1513,6 +1517,25 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(x, y);
   if (p.facing < 0) ctx.scale(-1, 1);
+
+  // rim light: tinted silhouette of the same frame, offset 1px toward the bolts.
+  // Cheaper than a normal map and it stays on the pixel grid.
+  const lv = p.charging ? chargeLevel() : 0;
+  if (lv > 0.5) {
+    const flick = 0.85 + Math.random() * 0.15;
+    rimCtx.clearRect(0, 0, 96, 96);
+    rimCtx.globalCompositeOperation = "source-over";
+    rimCtx.drawImage(atlasImg, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h);
+    rimCtx.globalCompositeOperation = "source-in";
+    rimCtx.fillStyle = `rgba(140,210,255,${Math.min(0.8, (0.22 + 0.38 * lv) * flick)})`;
+    rimCtx.fillRect(0, 0, f.w, f.h);
+    rimCtx.globalCompositeOperation = "source-over";
+
+    const ox = -Math.round(f.w / 2), oy = -f.h + (f.foot || 0);
+    ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox + 1, oy, f.w, f.h);
+    if (lv > 0.85) ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox, oy - 1, f.w, f.h);
+  }
+
   ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, -Math.round(f.w / 2), -f.h + (f.foot || 0), f.w, f.h);
   ctx.restore();
 
@@ -1832,10 +1855,10 @@ function render() {
     ctx.globalAlpha = 1;
   }
   drawEmberRing();
-  drawDecal();
   drawGroundGlow();
   drawBackAura();
   drawChargeFx();
+  drawBackArcs();
   drawOrbitSparks(false);
   drawPlayer();
   drawOrbitSparks(true);
@@ -1952,11 +1975,18 @@ function drawBackAura() {
   g.addColorStop(0, `rgba(180,240,255,${0.18 + 0.22 * lv})`);
   g.addColorStop(1, "rgba(115,190,211,0)");
   ctx.fillStyle = g;
+  // clip so the glow stops at the floor — only the ground ellipse lights below the feet
+  const floorY = player.y + player.h;
+  ctx.beginPath();
+  ctx.rect(cx - r - 2, cy - r - 2, (r + 2) * 2, Math.max(0, floorY - (cy - r - 2)));
+  ctx.clip();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
   ctx.restore();
 }
 
-// near = drawn after the sprite, far = before it
+// near = drawn after the sprite, far = before it.
+// The near half is deliberately louder (2x size, white core, one-frame trail) because
+// at this sprite size a small scale difference is invisible.
 function drawOrbitSparks(near) {
   const lv = player.charging ? chargeLevel() : (state.burstT > 0 ? 1 : 0);
   if (lv <= 0.05) return;
@@ -1965,20 +1995,69 @@ function drawOrbitSparks(near) {
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   for (const o of orbit) {
-    if (lv < 0.4 && o !== orbit[0]) continue;      // stage 1: one spark only
+    if (lv < 0.4 && o !== orbit[0]) continue;
     const depth = Math.sin(o.a);
     if ((depth > 0) !== near) continue;
     const x = cx + Math.cos(o.a) * o.r;
     const y = cy + depth * o.r * o.tilt;
-    const k = 0.55 + 0.75 * ((depth + 1) / 2);
-    const sz = Math.max(1, Math.round(o.size * k));
-    ctx.globalAlpha = (0.45 + 0.55 * ((depth + 1) / 2)) * Math.min(1, lv * 1.6);
-    if (depth > 0.3) {
-      ctx.fillStyle = "rgba(115,190,211,0.22)";
-      ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, sz + 4, sz + 4);
+
+    if (near) {
+      const k = 0.9 + 0.5 * depth;
+      const sz = Math.max(2, Math.round(o.size * 2 * k));
+      // one-frame trail back along the orbit
+      if (o.px !== undefined) {
+        ctx.globalAlpha = 0.45 * lv;
+        ctx.strokeStyle = "#73BED3";
+        ctx.lineWidth = Math.max(1, sz - 1);
+        ctx.beginPath();
+        ctx.moveTo(o.px + (x - o.px) * 0.6, o.py + (y - o.py) * 0.6);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = Math.min(1, lv * 1.5);
+      ctx.fillStyle = "rgba(140,210,255,0.35)";
+      ctx.fillRect(Math.round(x) - (sz >> 1) - 2, Math.round(y) - (sz >> 1) - 2, sz + 4, sz + 4);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(Math.round(x) - (sz >> 1), Math.round(y) - (sz >> 1), sz, sz);
+    } else {
+      const k = 0.5 + 0.25 * (depth + 1);
+      const sz = Math.max(1, Math.round(o.size * k));
+      ctx.globalAlpha = (0.35 + 0.3 * lv) * (0.6 + 0.4 * (depth + 1) / 2);
+      ctx.fillStyle = "#4F8FBA";
+      ctx.fillRect(Math.round(x) - (sz >> 1), Math.round(y) - (sz >> 1), sz, sz);
+      o.px = undefined;
+      continue;
     }
-    ctx.fillStyle = depth > 0 ? "#EBEDE9" : "#73BED3";
-    ctx.fillRect(Math.round(x) - (sz >> 1), Math.round(y) - (sz >> 1), sz, sz);
+    o.px = x; o.py = y;
+  }
+  ctx.restore();
+}
+
+function drawBackArcs() {
+  const lv = player.charging ? chargeLevel() : 0;
+  if (lv < 0.45) return;
+  const cx = player.x + player.w / 2 - world.cam;
+  const cy = player.y + 34;                       // hips
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = 0.55 + 0.35 * lv;
+  const n = lv > 0.8 ? 2 : 1;
+  for (let i = 0; i < n; i++) {
+    const dir = -player.facing;                   // backwards, behind the tail
+    let x = cx + dir * 8;
+    let y = cy + (Math.random() - 0.5) * 8;
+    const pts = [[x, y]];
+    for (let k = 0; k < 3; k++) {
+      x += dir * (7 + Math.random() * 8);
+      y += (Math.random() - 0.4) * 14;
+      pts.push([x, y]);
+    }
+    for (const [col, wd] of [["rgba(115,190,211,0.5)", 3], ["rgba(180,230,255,0.8)", 1]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = wd;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+      ctx.stroke();
+    }
   }
   ctx.restore();
 }

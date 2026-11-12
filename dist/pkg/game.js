@@ -127,7 +127,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
-  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null, burstT: 0,
+  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null, burstT: 0, hitstop: 0, decalT: 0, decalX: 0, decalY: 0,
 };
 
 /* ---------------------------------------------------------------- sandbox */
@@ -640,6 +640,7 @@ function dust(x, y, n) {
 /* ------------------------------------------------------------------ turn */
 function update(dt) {
   state.t += dt;
+  if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
   if (state.mode !== "play" || paused) { updateParticles(dt); return; }
 
   const p = player;
@@ -702,6 +703,8 @@ function update(dt) {
   p.wake = Math.max(0, p.wake - dt);
   state.emberVfx = Math.max(0, state.emberVfx - dt);
   state.burstT = Math.max(0, state.burstT - dt);
+  state.decalT = Math.max(0, state.decalT - dt);
+  updateOrbit(dt);
   p.chargeT = Math.max(0, p.chargeT - dt);
   if (p.charging && !p.dead) {
     if (Math.abs(p.vx) > 24 || !p.onGround) {   // moving cancels the crouch
@@ -807,6 +810,24 @@ function update(dt) {
   state.shake = Math.max(0, state.shake - dt * 40);
 }
 
+/* --------------------------------------------------------- charge layers */
+// Sparks circle the cat on a flattened ellipse. sin(angle) gives depth: negative is
+// behind the sprite, positive in front — that switch is what sells the volume.
+const orbit = Array.from({ length: 5 }, (_, i) => ({
+  a: (i / 5) * Math.PI * 2,
+  speed: 2.2 + i * 0.55,
+  r: 26 + (i % 3) * 9,
+  tilt: 0.28 + (i % 2) * 0.10,
+  size: 1 + (i % 2),
+}));
+
+function chargeLevel() { return state.charge / state.chargeMax; }
+
+function updateOrbit(dt) {
+  if (!player.charging && state.burstT <= 0) return;
+  for (const o of orbit) o.a += o.speed * dt;
+}
+
 /* --------------------------------------------------------------- powers */
 function addCharge(n) {
   const before = state.charge;
@@ -829,6 +850,11 @@ function castThunder() {
   p.powerHits = 0;
   p.invuln = Math.max(p.invuln, 0.5);
   state.shake = 8;
+  state.hitstop = 0.05;
+  state.flash = 0.9;
+  state.decalT = 1.0;
+  state.decalX = p.x + p.w / 2;
+  state.decalY = p.y + p.h;
   if (fxMeta) state.burstT = (fxMeta.frames - fxMeta.burstStart) / fxMeta.fps;
   sfx.thunder();
 }
@@ -1476,8 +1502,14 @@ function drawPlayer() {
   const set = state.setIndex === 0 ? "black" : "grey";
   const frames = ATLAS[set][p.anim] || ATLAS[set].idle;
   const f = frames[Math.min(p.frame, frames.length - 1)];
-  const x = Math.round(p.x + p.w / 2 - world.cam);
-  const y = Math.round(p.y + p.h);
+  let jx = 0, jy = 0;
+  if (p.charging) {                       // 1 px shake that grows with the charge
+    const lv = chargeLevel();
+    if (Math.random() < 0.35 + 0.4 * lv) jx = Math.random() < 0.5 ? -1 : 1;
+    if (Math.random() < 0.25 + 0.35 * lv) jy = Math.random() < 0.5 ? -1 : 1;
+  }
+  const x = Math.round(p.x + p.w / 2 - world.cam) + jx;
+  const y = Math.round(p.y + p.h) + jy;
   ctx.save();
   ctx.translate(x, y);
   if (p.facing < 0) ctx.scale(-1, 1);
@@ -1800,8 +1832,14 @@ function render() {
     ctx.globalAlpha = 1;
   }
   drawEmberRing();
+  drawDecal();
+  drawGroundGlow();
+  drawBackAura();
   drawChargeFx();
+  drawOrbitSparks(false);
   drawPlayer();
+  drawOrbitSparks(true);
+  drawFrontArcs();
   drawPowerFx();
   for (const p of world.particles) {
     ctx.globalAlpha = Math.max(0, p.life / p.max);
@@ -1812,6 +1850,7 @@ function render() {
   ctx.restore();
 
   drawHUD();
+  drawScreenFlash();
   drawDev();
 
   if (state.mode === "clear") {
@@ -1880,6 +1919,128 @@ function drawGrid() {
   // floor line, so jump height reads against something
   ctx.strokeStyle = "rgba(255,255,255,0.22)";
   ctx.beginPath(); ctx.moveTo(0, 470.5); ctx.lineTo(W, 470.5); ctx.stroke();
+}
+
+function drawGroundGlow() {
+  const lv = player.charging ? chargeLevel() : 0;
+  if (lv <= 0.02) return;
+  const cx = Math.round(player.x + player.w / 2 - world.cam);
+  const cy = Math.round(player.y + player.h);
+  const r = 22 + 20 * lv;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+  g.addColorStop(0, `rgba(164,221,219,${0.22 + 0.22 * lv})`);
+  g.addColorStop(0.55, `rgba(115,190,211,${0.10 + 0.12 * lv})`);
+  g.addColorStop(1, "rgba(115,190,211,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, r, r * 0.34, 0, 0, 7);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackAura() {
+  const lv = player.charging ? chargeLevel() : 0;
+  if (lv <= 0.05) return;
+  const cx = player.x + player.w / 2 - world.cam;
+  const cy = player.y + 26;
+  const r = 30 + 40 * lv;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+  g.addColorStop(0, `rgba(180,240,255,${0.18 + 0.22 * lv})`);
+  g.addColorStop(1, "rgba(115,190,211,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
+// near = drawn after the sprite, far = before it
+function drawOrbitSparks(near) {
+  const lv = player.charging ? chargeLevel() : (state.burstT > 0 ? 1 : 0);
+  if (lv <= 0.05) return;
+  const cx = player.x + player.w / 2 - world.cam;
+  const cy = player.y + 28;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const o of orbit) {
+    if (lv < 0.4 && o !== orbit[0]) continue;      // stage 1: one spark only
+    const depth = Math.sin(o.a);
+    if ((depth > 0) !== near) continue;
+    const x = cx + Math.cos(o.a) * o.r;
+    const y = cy + depth * o.r * o.tilt;
+    const k = 0.55 + 0.75 * ((depth + 1) / 2);
+    const sz = Math.max(1, Math.round(o.size * k));
+    ctx.globalAlpha = (0.45 + 0.55 * ((depth + 1) / 2)) * Math.min(1, lv * 1.6);
+    if (depth > 0.3) {
+      ctx.fillStyle = "rgba(115,190,211,0.22)";
+      ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, sz + 4, sz + 4);
+    }
+    ctx.fillStyle = depth > 0 ? "#EBEDE9" : "#73BED3";
+    ctx.fillRect(Math.round(x) - (sz >> 1), Math.round(y) - (sz >> 1), sz, sz);
+  }
+  ctx.restore();
+}
+
+function drawFrontArcs() {
+  const lv = player.charging ? chargeLevel() : 0;
+  if (lv < 0.6) return;
+  const cx = player.x + player.w / 2 - world.cam;
+  const cy = player.y + 22;
+  const n = lv > 0.9 ? 4 : 2;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI * 0.85 + (i + Math.random() * 0.4) * (Math.PI * 1.2 / n);
+    let x = cx + Math.cos(ang) * 6;
+    let y = cy + Math.sin(ang) * 6;
+    const pts = [[x, y]];
+    let a = ang;
+    for (let k = 0; k < 3; k++) {
+      a += (Math.random() - 0.5) * 0.9;
+      const L = 9 + Math.random() * 9;
+      x += Math.cos(a) * L;
+      y += Math.sin(a) * L;
+      pts.push([x, y]);
+    }
+    // cyan halo then white core
+    for (const [col, wd] of [["rgba(115,190,211,0.55)", 3], ["rgba(235,237,233,0.95)", 1]]) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = wd;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawDecal() {
+  if (state.decalT <= 0) return;
+  const t = 1 - state.decalT;
+  const x = state.decalX - world.cam;
+  const r = 18 + t * 46;
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = (1 - t) * 0.55;
+  ctx.strokeStyle = "#73BED3";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(x, state.decalY, r, r * 0.3, 0, 0, 7); ctx.stroke();
+  ctx.globalAlpha = (1 - t) * 0.25;
+  ctx.beginPath(); ctx.ellipse(x, state.decalY, r * 0.6, r * 0.18, 0, 0, 7); ctx.stroke();
+  ctx.restore();
+}
+
+function drawScreenFlash() {
+  if (state.flash <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(0.55, state.flash * 0.55);
+  ctx.fillStyle = "#EBEDE9";
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  state.flash = Math.max(0, state.flash - 0.12);
 }
 
 function drawChargeFx() {

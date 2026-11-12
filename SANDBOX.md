@@ -71,6 +71,38 @@ Copy the PNGs into `assets/icons/` and they are picked up by `powerIcons` in `ga
 The `--want` flag scores the mean colour of the opaque pixels, so you can ask for a blue
 lightning bolt instead of the first yellow one.
 
+## Charge layers
+
+The charge is drawn in six passes, back to front — the layering is what gives the flat
+sprite volume:
+
+| Order | Layer | What |
+|---|---|---|
+| 1 | ground glow | flattened additive ellipse under the feet |
+| 2 | ground decal | fading ring left at the launch point after a cast |
+| 3 | back aura | soft radial glow behind the body |
+| 4 | charge sheet | pixelfx build frames, behind the cat |
+| 5 | orbit sparks (far half) | sparks whose `sin(angle) < 0` |
+| 6 | **cat** | the held crouch |
+| 7 | orbit sparks (near half) | same sparks, `sin(angle) > 0` — bigger, brighter |
+| 8 | front arcs | bolts radiating from the chest, crossing the body |
+| 9 | screen flash | white overlay on release |
+
+Sparks orbit a flattened ellipse: `x = cos(a)*r`, `y = sin(a)*r*tilt`. The sign of
+`sin(a)` decides whether a spark draws before or after the sprite — that single switch is
+what makes the ring read as circling *around* the cat instead of on top of it.
+
+Escalation is driven by one number, `chargeLevel()`:
+
+| Stage | Charge | Adds |
+|---|---|---|
+| 1 | 0–40% | one spark, faint ground glow |
+| 2 | 40–60% | all five sparks, back aura grows |
+| 3 | 60–100% | front arcs, sprite jitter, ground glow peaks |
+
+Release runs `hitstop 0.05s` → `flash` → burst frames → decal fade. The sprite also picks up
+1 px random jitter that increases with the charge level, so the held pose never looks frozen.
+
 ## Charge FX (pixelfx)
 
 `assets/fx/lightning-charge.png` + `.json` is `pixelfx`'s **lightning/charge-up**, exported

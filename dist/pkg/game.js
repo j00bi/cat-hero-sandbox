@@ -193,8 +193,8 @@ addEventListener("keydown", (e) => {
     keys[k] = true;
   }
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
-  if (e.code === "KeyC" && state.mode === "play" && !player.dead) player.charging = true;
-  if (e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") startCharge();
+  if (DEV && e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
   if (DEV) {
@@ -226,16 +226,23 @@ addEventListener("keydown", (e) => {
 addEventListener("keyup", (e) => {
   const k = MAP[e.code]; if (k) keys[k] = false;
   if (e.code === "Enter" || e.code === "Space") keys.confirm = false;
-  if (e.code === "KeyC" && player.charging) {
-    player.charging = false;
-    if (state.charge >= state.chargeMax) tryPower();   // release at full = cast
-  }
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") releaseCharge();
 });
 
 document.querySelectorAll("#touch button").forEach((b) => {
   const k = b.dataset.k;
-  const on = (e) => { e.preventDefault(); e.stopPropagation(); keys[k] = true; if (k === "jump") queued.jump = true; if (k === "bat") queued.bat = true; };
-  const off = (e) => { e.preventDefault(); e.stopPropagation(); keys[k] = false; };
+  const on = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (k === "charge") { startCharge(); return; }
+    keys[k] = true;
+    if (k === "jump") queued.jump = true;
+    if (k === "bat") queued.bat = true;
+  };
+  const off = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (k === "charge") { releaseCharge(); return; }
+    keys[k] = false;
+  };
   b.addEventListener("pointerdown", on);
   b.addEventListener("pointerup", off);
   b.addEventListener("pointercancel", off);
@@ -278,6 +285,7 @@ function line(x, y, n, dx = 40) {
 const LEVELS = [
   {
     world: "1-1", name: "MEADOW FIELDS",
+    power: 0,
     width: 2600,
     spawn: { x: 80, y: 380 },
     solids: [
@@ -307,6 +315,7 @@ const LEVELS = [
   },
   {
     world: "1-2", name: "THE OLD ORCHARD",
+    power: 0,
     width: 3100,
     spawn: { x: 70, y: 360 },
     solids: [
@@ -341,6 +350,7 @@ const LEVELS = [
   },
   {
     world: "1-3", name: "SUNSET RIDGE",
+    power: 0,
     width: 3400,
     spawn: { x: 70, y: 380 },
     solids: [
@@ -378,6 +388,7 @@ const LEVELS = [
   },
   {
     world: "1-4", name: "CLOUD DOCKS",
+    power: 0,
     width: 3000,
     spawn: { x: 80, y: 380 },
     solids: [
@@ -415,6 +426,7 @@ const LEVELS = [
   },
   {
     world: "1-5", name: "THE OLD MILL",
+    power: 0,
     width: 3400,
     spawn: { x: 70, y: 380 },
     solids: [
@@ -452,6 +464,7 @@ const LEVELS = [
   },
   {
     world: "1-6", name: "HOME AT LAST",
+    power: 0,
     width: 3800,
     spawn: { x: 60, y: 380 },
     solids: [
@@ -492,6 +505,7 @@ const LEVELS = [
   },
   {
     world: "1-7", name: "THE DEN",
+    power: 2,
     width: 1200,
     spawn: { x: 90, y: 380 },
     boss: true,
@@ -507,6 +521,7 @@ const LEVELS = [
   },
   {
     world: "DEV", name: "SANDBOX",
+    power: 0,
     width: 2560,
     spawn: { x: 620, y: 380 },
     sandbox: true,
@@ -554,6 +569,7 @@ function loadLevel(i) {
   world.got = 0;
   state.totalCoins = L.coins.length;
   state.coins = 0;
+  state.powerId = L.power ?? 0;
   paused = false;
   state.mode = "play";
   document.body.classList.add("playing");
@@ -836,6 +852,17 @@ function updateOrbit(dt) {
 }
 
 /* --------------------------------------------------------------- powers */
+function startCharge() {
+  if (state.mode !== "play" || player.dead) return;
+  player.charging = true;
+}
+
+function releaseCharge() {
+  if (!player.charging) return;
+  player.charging = false;
+  if (state.charge >= state.chargeMax) tryPower();   // release at full = cast
+}
+
 function addCharge(n) {
   const before = state.charge;
   state.charge = Math.min(state.chargeMax, state.charge + n);
@@ -1045,6 +1072,7 @@ function killEnemy(e, knock) {
 }
 
 function updateParticles(dt) {
+  if (world.particles.length > 400) world.particles.splice(0, world.particles.length - 400);
   for (let i = world.particles.length - 1; i >= 0; i--) {
     const p = world.particles[i];
     p.life -= dt;
@@ -1532,7 +1560,8 @@ function drawPlayer() {
     rimCtx.globalCompositeOperation = "source-over";
 
     const ox = -Math.round(f.w / 2), oy = -f.h + (f.foot || 0);
-    ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox + 1, oy, f.w, f.h);
+    const rimDx = p.facing < 0 ? -1 : 1;    // keep the light on the world's right after the flip
+    ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox + rimDx, oy, f.w, f.h);
     if (lv > 0.85) ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox, oy - 1, f.w, f.h);
   }
 
@@ -2254,7 +2283,7 @@ addEventListener("resize", fit);
 
 function toggleMute() {
   state.muted = !state.muted;
-  try { localStorage.setItem("cath hero muted", state.muted ? "1" : "0"); } catch (e) { }
+  try { localStorage.setItem("cathero.muted", state.muted ? "1" : "0"); } catch (e) { }
 }
 
 function boot() {
@@ -2262,7 +2291,11 @@ function boot() {
     const idx = LEVELS.findIndex((L) => L.sandbox);
     if (idx >= 0) { state.level = idx; state.lives = 3; loadLevel(idx); }
   }
-  try { state.muted = localStorage.getItem("cath hero muted") === "1"; } catch (e) { }
+  try {
+    const legacy = localStorage.getItem("cath hero muted");
+    const now = localStorage.getItem("cathero.muted");
+    state.muted = (now ?? legacy) === "1";
+  } catch (e) { }
   ATLAS = window.__CAT_ATLAS__;
   fit();
   window.__GAME = { state, player, world, LEVELS, keys, queued, loadLevel };

@@ -16,4 +16,5 @@ body.playing #hint{opacity:0}
   backdrop-filter:blur(2px);touch-action:none;-webkit-user-select:none;user-select:none}
 #touch button:active{background:rgba(240,230,200,.9);color:#1b1410;transform:scale(.96)}
 #touch button.bat{width:64px;height:64px;font-size:11px}
+#touch button.chg{width:56px;height:56px;font-size:20px;border-color:#73BED3;color:#A4DDDB}
 @media (pointer:coarse){#touch{display:flex} #hint{display:none}}

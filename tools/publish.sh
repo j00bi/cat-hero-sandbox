@@ -16,9 +16,9 @@ SITE="dist/pkg"
 
 echo "== build $SITE"
 rm -rf dist
-mkdir -p "$SITE/assets"
+mkdir -p "$SITE"
 cp index.html style.css game.js "$SITE/"
-cp assets/cat-atlas.png assets/cat-atlas.json "$SITE/assets/"
+cp -r assets "$SITE/"
 
 echo "== itch zip"
 python3 - "$SITE" dist/cat-hero-itch.zip <<'PY'

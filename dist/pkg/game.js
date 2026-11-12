@@ -145,6 +145,7 @@ const state = {
 // Open the page with ?dev=1 to get the sandbox tools. Without it the game is unchanged.
 const DEV = new URLSearchParams(location.search).has("dev");
 const dev = { timeScale: 1, hitboxes: false, god: false, overlay: true, fps: 60 };
+let sbEl = null, sbOpen = null, sbNow = null, sbStages = null;
 
 const keys = Object.create(null);
 const queued = { jump: false, bat: false };
@@ -211,7 +212,7 @@ addEventListener("keydown", (e) => {
   if (DEV) {
     if (e.code === "KeyH") dev.hitboxes = !dev.hitboxes;
     if (e.code === "KeyG") dev.god = !dev.god;
-    if (e.code === "Backquote") dev.overlay = !dev.overlay;
+    if (e.code === "Backquote") { dev.overlay = !dev.overlay; toggleSandboxPanel(); }
     if (e.code === "BracketLeft") dev.timeScale = Math.max(0.1, +(dev.timeScale - 0.1).toFixed(2));
     if (e.code === "BracketRight") dev.timeScale = Math.min(3, +(dev.timeScale + 0.1).toFixed(2));
     if (e.code === "KeyN" && state.mode === "play") {
@@ -220,8 +221,8 @@ addEventListener("keydown", (e) => {
     }
     if (e.code === "KeyK" && state.mode === "play") for (const en of world.enemies) en.alive = false;
     if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
-    if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
-    if (e.code === "KeyR") loadLevel(state.level);
+    if (e.code === "KeyL" && state.mode === "play") jumpToStage(Math.min(state.level, DEMO_COUNT - 1) + 1);
+    if (e.code === "KeyR") restartStage();
     if (e.code === "KeyF") state.charge = state.chargeMax;
     if (e.code === "Digit1") state.powerId = 0;
     if (e.code === "Digit2") state.powerId = 1;
@@ -642,6 +643,75 @@ const world = {
   level: null, coins: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
   goal: null, time: 0, checkpoint: 0, plats: [], boss: null, goalDef: null, vac: null,
 };
+/* ------------------------------------------------------- sandbox panel */
+function resetStageState() {
+  state.lives = 3; state.checkpoint = 0; state.fish = 0; state.coins = 0;
+  state.card = null; player.charging = false; state.charge = 0; paused = false;
+  document.body.classList.add("playing");
+}
+
+function jumpToStage(i) {
+  const target = Math.max(0, Math.min(DEMO_COUNT - 1, i | 0));
+  resetStageState();
+  state.level = target;
+  loadLevel(target);
+  syncSandbox();
+}
+
+function restartStage() {
+  resetStageState();
+  loadLevel(Math.min(state.level, LEVELS.length - 1));
+  syncSandbox();
+}
+
+function syncSandbox() {
+  if (!sbNow) return;
+  const L = LEVELS[state.level];
+  sbNow.textContent = L ? `${L.world} · ${L.name}` : "DEV";
+  for (const b of sbStages.querySelectorAll("button"))
+    b.classList.toggle("active", +b.dataset.stage === state.level);
+}
+
+function toggleSandboxPanel(force) {
+  if (!sbEl) return;
+  const show = force === undefined ? sbEl.hidden : force;
+  sbEl.hidden = !show;
+  if (sbOpen) sbOpen.hidden = show;
+  if (show) syncSandbox();
+}
+
+function initSandboxUI() {
+  if (!DEV) return;
+  sbEl = document.getElementById("sandbox");
+  sbOpen = document.getElementById("sb-open");
+  sbNow = document.getElementById("sb-now");
+  sbStages = document.getElementById("sb-stages");
+  if (!sbEl || !sbStages) return;
+
+  for (let i = 0; i < DEMO_COUNT; i++) {
+    const L = LEVELS[i], b = document.createElement("button");
+    b.dataset.stage = i;
+    b.textContent = `${L.world} ${L.name}`;
+    b.addEventListener("click", () => { jumpToStage(i); b.blur(); });
+    sbStages.appendChild(b);
+  }
+  const closeBtn = document.getElementById("sb-close");
+  closeBtn.addEventListener("click", () => { toggleSandboxPanel(false); closeBtn.blur(); });
+  sbOpen.addEventListener("click", () => { toggleSandboxPanel(true); sbOpen.blur(); });
+  for (const b of sbEl.querySelectorAll("[data-sb]")) {
+    b.addEventListener("click", () => {
+      if (b.dataset.sb === "restart") restartStage();
+      else if (b.dataset.sb === "prev") jumpToStage(Math.min(state.level, DEMO_COUNT - 1) - 1);
+      else jumpToStage(Math.min(state.level, DEMO_COUNT - 1) + 1);
+      b.blur();                         // Space must stay a jump, not a button press
+    });
+  }
+  sbEl.hidden = false;
+  sbOpen.hidden = true;
+  syncSandbox();
+}
+
+
 
 /* ------------------------------------------------------------- collision */
 function overlaps(a, b) {
@@ -2422,8 +2492,10 @@ function drawDev() {
     for (const en of world.enemies) if (en.alive) ctx.strokeRect(Math.round(en.x - cx), Math.round(en.y), en.w, en.h);
     ctx.strokeStyle = "#ff00ff";
     if (world.boss) ctx.strokeRect(Math.round(world.boss.x - cx), Math.round(world.boss.y), world.boss.w, world.boss.h);
-    ctx.strokeStyle = "rgba(0,255,200,0.45)";
-    for (const sd of world.level.solids) ctx.strokeRect(Math.round(sd.x - cx), Math.round(sd.y), sd.w, sd.h);
+    if (world.level.solids) {
+      ctx.strokeStyle = "rgba(0,255,200,0.45)";
+      for (const sd of world.level.solids) ctx.strokeRect(Math.round(sd.x - cx), Math.round(sd.y), sd.w, sd.h);
+    }
     ctx.strokeStyle = "rgba(120,200,255,0.55)";
     for (const pl of world.plats) ctx.strokeRect(Math.round(pl.x - cx), Math.round(pl.y), pl.w, pl.h);
   }
@@ -2507,7 +2579,9 @@ function boot() {
     onBlast: () => { state.level++; loadLevel(state.level, { introBlast: true }); },
   });
   fit();
-  window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel, showCard, OPENING, ENDING, RAY, releaseCharge };
+  initSandboxUI();
+  window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
+                    showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage };
   requestAnimationFrame(frame);
 }
 

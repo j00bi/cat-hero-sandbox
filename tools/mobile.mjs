@@ -26,6 +26,8 @@ await tap(0.8);                    // tap the grey cat card (switch hero)
 out.setIndex = await page.evaluate(() => window.__GAME.state.setIndex);
 await tap(0.8);                    // tap again -> start with grey cat
 out.afterTap2 = await mode();
+for (let i = 0; i < 12 && (await mode()) === "card"; i++) await tap();   // opening cards
+out.afterCards = await mode();
 await page.screenshot({ path: "shots/11-mobile-play.png" });
 
 // jump button
@@ -45,7 +47,8 @@ const x1 = await page.evaluate(() => window.__GAME.player.x);
 out.movedByTouch = x1 - x0 > 40;
 
 out.errors = errors;
-out.pass = out.afterTap1 === "select" && out.afterTap2 === "play" && out.setIndex === 1
+out.pass = out.afterTap1 === "select" && out.afterTap2 === "card"
+  && out.afterCards === "play" && out.setIndex === 1
   && out.jumpedByTouch && out.movedByTouch && errors.length === 0;
 console.log(JSON.stringify(out, null, 1));
 await browser.close();

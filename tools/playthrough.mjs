@@ -11,8 +11,9 @@ await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(300);
 
 const results = [];
-const levels = await page.evaluate(() => window.__GAME.LEVELS.map((L, i) => ({ i, boss: !!L.boss, sandbox: !!L.sandbox })));
-const platformLevels = levels.filter((L) => !L.boss && !L.sandbox);
+const levels = await page.evaluate(() => window.__GAME.LEVELS.map((L, i) => ({
+  i, name: L.name, boss: !!L.boss, sandbox: !!L.sandbox, placeholder: !!L.placeholder })));
+const platformLevels = levels.filter((L) => !L.boss && !L.sandbox && !L.placeholder);
 for (const { i: lv } of platformLevels) {
   const r = await page.evaluate((level) => new Promise((resolve) => {
     const G = window.__GAME;

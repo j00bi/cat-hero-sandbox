@@ -20,7 +20,7 @@ const out = await page.evaluate(async () => {
   // 1. every level that declares platforms actually builds them
   report.platformLevels = G.LEVELS.map((L, i) => ({ i, name: L.name, n: (L.platforms || []).length }))
     .filter((x) => x.n > 0);
-  report.checks.built = report.platformLevels.length === 3;
+  report.checks.built = report.platformLevels.length === 1 && report.platformLevels[0].n === 3;
 
   // 2. horizontal plank travels
   G.loadLevel(report.platformLevels[0].i);
@@ -61,7 +61,7 @@ const out = await page.evaluate(async () => {
   report.loads = [];
   for (let i = 0; i < G.LEVELS.length; i++) {
     G.loadLevel(i);
-    report.loads.push({ i, ok: G.world.level === G.LEVELS[i] && (G.world.level.sandbox || G.world.coins.length > 0) });
+    report.loads.push({ i, ok: G.world.level === G.LEVELS[i] && (G.world.level.sandbox || G.world.level.placeholder || G.world.coins.length > 0) });
   }
   report.checks.allLoad = report.loads.every((l) => l.ok);
   return report;

@@ -53,8 +53,10 @@ Touch controls appear automatically on phones and tablets.
 - 3 lives. Falling into a gap costs one and respawns you at the room entrance.
 - Robot vacuums patrol every room. **Stomp** them from above, or **swipe** them with the paw.
 - Fish coins are score. The cushion at the end of each room is the exit.
-- Seven rooms: **Meadow Fields**, **The Old Orchard**, **Sunset Ridge**, **Cloud Docks**,
-  **The Old Mill**, **Home At Last**, and **The Den** — the boss arena.
+- Five demo stages: **Backyard**, **The Climb**, **Dust Bin**, **The Motor**, and
+  **The Den** — the boss arena. Dust Bin and The Motor are raycaster stubs until phase 3;
+  they auto-clear with an "under construction" card. The four old 1-x rooms live in
+  `LEVELS_EXTRA` for the post-jam extended mode.
 - **Moving platforms.** Dock planks drift sideways, mill lifts rise and fall. Stand on one
   and it carries you — no input needed. They are the only way to reach some of the high
   fish lines, and the floor is never the whole route.
@@ -102,6 +104,8 @@ node tools/boss.mjs        # bait, stun, stomp x3, cushion returns
 node tools/reach.mjs       # every platform reachable from spawn
 node tools/playthrough.mjs # autopilot finishes all 3 rooms
 node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
+node tools/story.mjs       # opening cards -> 5-stage flow -> ending card -> win
+node tools/phase11.mjs     # Shift guard, blur cancel, failed-release fizzle
 ```
 
 - `test.mjs` — boots the game, plays it with real key events: menu → hero select → room,

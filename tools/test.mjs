@@ -15,6 +15,16 @@ await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.waitForTimeout(400);
 
+const advanceCards = async () => {
+  for (let i = 0; i < 12; i++) {
+    const mode = await page.evaluate(() => window.__GAME.state.mode);
+    if (mode !== "card") return mode;
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(140);
+  }
+  return page.evaluate(() => window.__GAME.state.mode);
+};
+
 const g = () => page.evaluate(() => {
   const { state, player, world } = window.__GAME;
   return { mode: state.mode, x: player.x, y: player.y, vy: player.vy, onGround: player.onGround,
@@ -35,7 +45,10 @@ await page.keyboard.press("ArrowRight");       // switch hero
 await page.waitForTimeout(200);
 res.selectSwitched = (await g()).set;
 
-await page.keyboard.press("Enter");            // select -> play
+await page.keyboard.press("Enter");            // select -> story cards
+await page.waitForTimeout(300);
+res.story = await g();
+await advanceCards();                          // opening cards -> play
 await page.waitForTimeout(700);
 res.start = await g();
 await page.screenshot({ path: new URL("03-play.png", OUT).pathname });
@@ -123,6 +136,7 @@ const check = {
   titleLoaded: res.title.mode === "title",
   selectWorks: res.select.mode === "select",
   heroSwitch: res.selectSwitched === 1,
+  openingPlayed: res.story.mode === "card",
   playStarted: res.start.mode === "play",
   movedRight: res.walked > 100,
   jumped: res.beforeJump.y - res.jumpMinY > 40,

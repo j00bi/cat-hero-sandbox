@@ -13,7 +13,13 @@ await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.keyboard.press("Enter");
 await page.waitForTimeout(250);
 await page.keyboard.press("Enter");
-await page.waitForTimeout(500);
+await page.waitForTimeout(300);
+for (let i = 0; i < 12; i++) {                 // opening story cards
+  if ((await page.evaluate(() => window.__GAME.state.mode)) !== "card") break;
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(140);
+}
+await page.waitForTimeout(300);
 
 const read = () => page.evaluate(() => {
   const { state, player, world } = window.__GAME;

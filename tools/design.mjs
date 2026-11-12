@@ -20,7 +20,14 @@ const checks = {};
 await page.keyboard.press("Enter");
 await page.waitForTimeout(250);
 await page.keyboard.press("Enter");
-await page.waitForTimeout(800);
+await page.waitForTimeout(300);
+for (let i = 0; i < 12; i++) {                 // opening story cards
+  const mode = await page.evaluate(() => window.__GAME.state.mode);
+  if (mode !== "card") break;
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(140);
+}
+await page.waitForTimeout(500);
 
 const hud = await page.evaluate((band) => {
   const G = window.__GAME;

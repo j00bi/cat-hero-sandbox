@@ -17,4 +17,11 @@ body.playing #hint{opacity:0}
 #touch button:active{background:rgba(240,230,200,.9);color:#1b1410;transform:scale(.96)}
 #touch button.bat{width:64px;height:64px;font-size:11px}
 #touch button.chg{width:56px;height:56px;font-size:20px;border-color:#73BED3;color:#A4DDDB}
+/* Ray rooms: JUMP/PAW are forward/back here, so relabel them with glyphs only. */
+body.ray #touch button[data-k="jump"],
+body.ray #touch button[data-k="bat"]{font-size:0;letter-spacing:0}
+body.ray #touch button[data-k="jump"]::after,
+body.ray #touch button[data-k="bat"]::after{display:block;font:700 22px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:0}
+body.ray #touch button[data-k="jump"]::after{content:"\25B2"}
+body.ray #touch button[data-k="bat"]::after{content:"\25BC"}
 @media (pointer:coarse){#touch{display:flex} #hint{display:none}}

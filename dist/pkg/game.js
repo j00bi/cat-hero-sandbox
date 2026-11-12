@@ -149,6 +149,7 @@ const dev = { timeScale: 1, hitboxes: false, god: false, overlay: true, fps: 60 
 const keys = Object.create(null);
 const queued = { jump: false, bat: false };
 let paused = false;
+let RAY = null;                 // raycaster room instance (ray.js), created in boot()
 
 /* ----------------------------------------------------------------- audio */
 let AC = null;
@@ -186,6 +187,7 @@ const MAP = {
   ArrowLeft: "left", KeyA: "left",
   ArrowRight: "right", KeyD: "right",
   Space: "jump", ArrowUp: "jump", KeyW: "jump", KeyZ: "jump",
+  ArrowDown: "down", KeyS: "down",
   KeyJ: "bat", KeyX: "bat",
 };
 addEventListener("keydown", (e) => {
@@ -559,16 +561,14 @@ const LEVELS = [
   // the middle to break the rhythm.
   LEVELS_ALL.find((L) => L.world === "2-2"),
   {
-    world: "2-3", name: "DUST BIN", placeholder: true, ray: true, dark: true,
-    theme: "bin", hint: "Hold SHIFT to light the way", chargeRate: 95,
-    width: 960, spawn: { x: 64, y: 380 },
-    solids: [], coins: [], enemies: [], goal: null, decor: [],
+    world: "2-3", name: "DUST BIN", ray: true, dark: true, theme: "bin",
+    hint: "Hold SHIFT to light the way", chargeRate: 95,
+    grid: ["########", "#S..d..#", "#.##.#.#", "#..T.#T#", "##.#...#", "#..d.#.#", "#T##...D", "########"],
   },
   {
-    world: "2-4", name: "THE MOTOR", placeholder: true, ray: true, dark: false,
-    theme: "motor", chargeRate: 95,
-    width: 960, spawn: { x: 64, y: 380 },
-    solids: [], coins: [], enemies: [], goal: null, decor: [],
+    world: "2-4", name: "THE MOTOR", ray: true, dark: false, theme: "motor",
+    hint: "Full charge at the core", chargeRate: 95,
+    grid: ["#######", "#S.B..#", "#.#.#.#", "#..M..#", "#.#.#.#", "#..B.E#", "#######"],
   },
   LEVELS_ALL.find((L) => L.world === "2-5"),
   LEVELS_ALL.find((L) => L.sandbox),
@@ -582,22 +582,21 @@ const player = {
   attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false,
 };
 
-function loadLevel(i) {
+function loadLevel(i, opts = {}) {
   const L = LEVELS[i];
-  if (L.placeholder) {                 // ray stages are stubs until phase 3
-    world.level = L; world.boss = null; world.goalDef = null; world.goal = null;
-    world.coins = []; world.enemies = []; world.plats = []; world.particles.length = 0;
-    world.total = 0; world.got = 0; state.totalCoins = 0; state.coins = 0;
-    world.vac = null;
-    player.x = L.spawn.x; player.y = L.spawn.y;
-    player.spawnX = L.spawn.x; player.spawnY = L.spawn.y;
-    player.vx = player.vy = 0; player.dead = false; player.charging = false;
-    state.idleT = 0;
+  if (RAY) RAY.exit();
+  if (L.ray) {                         // raycaster room: ray.js owns the world
+    world.level = L; world.boss = null; world.enemies = []; world.coins = []; world.plats = [];
+    world.goal = null; world.goalDef = null; world.vac = null;
+    world.particles.length = 0; world.total = 0; state.totalCoins = 0; state.coins = 0;
+    RAY.enter(L);
     paused = false;
-    state.mode = "clear";
+    state.mode = "play";
     document.body.classList.add("playing");
+    document.body.classList.add("ray");
     return;
   }
+  document.body.classList.remove("ray");
   player.x = L.spawn.x; player.y = L.spawn.y;
   player.spawnX = L.spawn.x; player.spawnY = L.spawn.y;
   player.vx = player.vy = 0; player.facing = 1; player.dead = false;
@@ -632,6 +631,11 @@ function loadLevel(i) {
   paused = false;
   state.mode = "play";
   document.body.classList.add("playing");
+  if (opts.introBlast && world.boss) {          // free first stomp after a ray-room blast
+    player.x = 200; player.y = 120; player.vy = -300;
+    world.boss.state = "stun"; world.boss.stun = 3.0; world.boss.t = 0;
+    state.flash = 1; state.shake = 10;
+  }
 }
 
 const world = {
@@ -723,6 +727,7 @@ function update(dt) {
   if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
   if (state.mode === "card" && state.card) { state.card.t += dt; return; }
   if (state.mode !== "play" || paused) { updateParticles(dt); return; }
+  if (world.level && world.level.ray && state.mode === "play") { RAY.update(dt); return; }
 
   const p = player;
   world.time += dt;
@@ -922,6 +927,7 @@ function startCharge() {
 function releaseCharge() {
   if (!player.charging) return;
   player.charging = false;
+  if (world.level && world.level.ray) { if (RAY) RAY.release(); return; }
   if (state.charge >= state.chargeMax) { tryPower(); return; }   // release at full = cast
   if (state.charge > 20) {                                       // fizzle: keep the banked meter
     beep(180, 0.08, "triangle", 0.07, 120);
@@ -1762,6 +1768,27 @@ function fishGlyph(x, y) {
   ctx.fillRect(x + 9, y + 4, 2, 2);
 }
 
+function drawPauseCard() {
+  ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
+  const cw = 360, ch = 250, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
+  card(cx, cy, cw, ch);
+  text("PAUSED", W / 2, cy + 26, 3, C.ink, "center");
+
+  const rows = [
+    ["<", ">", "MOVE"],
+    ["Z", "", "JUMP"],
+    ["X", "", "PAW SWIPE"],
+    ["M", "", "MUTE"],
+  ];
+  rows.forEach((r, i) => {
+    const ry = cy + 82 + i * 34;
+    keycap(r[0], cx + 54, ry, 18);
+    if (r[1]) keycap(r[1], cx + 76, ry, 18);
+    text(r[2], cx + 112, ry + 4, 1, C.ink);
+  });
+  text("P OR ESC TO RESUME", W / 2, cy + ch - 26, 1, C.paperEdge, "center");
+}
+
 function drawHUD() {
   const L = LEVELS[state.level];
   state.hudRects.length = 0;
@@ -1855,26 +1882,7 @@ function drawHUD() {
 
   // Controls are not HUD: they live on the title card and in the pause card.
 
-  if (paused) {
-    ctx.fillStyle = C.scrim; ctx.fillRect(0, 0, W, H);
-    const cw = 360, ch = 250, cx = W / 2 - cw / 2, cy = H / 2 - ch / 2;
-    card(cx, cy, cw, ch);
-    text("PAUSED", W / 2, cy + 26, 3, C.ink, "center");
-
-    const rows = [
-      ["<", ">", "MOVE"],
-      ["Z", "", "JUMP"],
-      ["X", "", "PAW SWIPE"],
-      ["M", "", "MUTE"],
-    ];
-    rows.forEach((r, i) => {
-      const ry = cy + 82 + i * 34;
-      keycap(r[0], cx + 54, ry, 18);
-      if (r[1]) keycap(r[1], cx + 76, ry, 18);
-      text(r[2], cx + 112, ry + 4, 1, C.ink);
-    });
-    text("P OR ESC TO RESUME", W / 2, cy + ch - 26, 1, C.paperEdge, "center");
-  }
+  if (paused) drawPauseCard();
   if (state.muted) text("MUTED", W - 32, 74, 1, "rgba(255,255,255,0.6)", "right");
 }
 
@@ -2035,6 +2043,15 @@ function render() {
   if (state.mode === "select") { drawSelect(); return; }
   if (state.mode === "card") { drawCard(); drawScreenFlash(); return; }
 
+  if (world.level && world.level.ray && (state.mode === "play" || state.mode === "clear")) {
+    RAY.render(ctx);
+    if (state.mode === "clear") {
+      drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
+    }
+    if (paused) drawPauseCard();
+    return;
+  }
+
   const sh = state.shake;
   const ox = sh ? (Math.random() - 0.5) * sh : 0;
   const oy = sh ? (Math.random() - 0.5) * sh : 0;
@@ -2087,9 +2104,7 @@ function render() {
   drawDev();
 
   if (state.mode === "clear") {
-    const L = world.level;
-    if (L && L.placeholder) drawOverlayCard(L.name, "UNDER CONSTRUCTION - ENTER", C.ink, L.world);
-    else drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
+    drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
   }
   if (state.mode === "gameover") {
     drawOverlayCard("GAME OVER", "ENTER TO TRY AGAIN", C.redDeep, `FISH ${state.coins}`);
@@ -2485,8 +2500,14 @@ function boot() {
     state.muted = (now ?? legacy) === "1";
   } catch (e) { }
   ATLAS = window.__CAT_ATLAS__;
+  RAY = CatRay.create({
+    W, H, state, player, keys, queued, sfx, ac, addCharge,
+    text: (s, x, y, size, col, align) => text(s, x, y, size, col, align),
+    onClear: () => { state.mode = "clear"; sfx.win(); },
+    onBlast: () => { state.level++; loadLevel(state.level, { introBlast: true }); },
+  });
   fit();
-  window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel, showCard, OPENING, ENDING };
+  window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel, showCard, OPENING, ENDING, RAY, releaseCharge };
   requestAnimationFrame(frame);
 }
 

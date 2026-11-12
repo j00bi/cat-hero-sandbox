@@ -11,7 +11,7 @@ page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + 
 page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("response", (r) => { if (r.status() >= 400) errors.push(`http ${r.status()} ${r.url()}`); });
 
-await page.goto("http://127.0.0.1:8123/", { waitUntil: "networkidle" });
+await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.waitForTimeout(400);
 

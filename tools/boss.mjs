@@ -8,7 +8,7 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 760 } });
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
 
-await page.goto("http://127.0.0.1:8123/", { waitUntil: "networkidle" });
+await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME);
 await page.waitForTimeout(300);
 

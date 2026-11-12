@@ -2,7 +2,7 @@ import { chromium } from "/home/husni/.hermes/node/lib/node_modules/playwright/i
 
 const browser = await chromium.launch({ executablePath: "/home/husni/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome" });
 const page = await browser.newPage({ viewport: { width: 1200, height: 760 } });
-await page.goto("http://127.0.0.1:8123/", { waitUntil: "networkidle" });
+await page.goto((process.env.BASE || "http://127.0.0.1:8123") + "/", { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 
 const report = await page.evaluate(() => {

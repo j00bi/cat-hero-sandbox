@@ -45,6 +45,7 @@ Then, before you believe it works:
 
 ```bash
 node tools/test.mjs        # 14 gameplay assertions
+node tools/phase11.mjs     # Shift guard, blur cancel, fizzle
 node tools/reach.mjs       # every platform still reachable
 node tools/playthrough.mjs # autopilot clears all 6 rooms
 node tools/mobile.mjs      # touch path still works
@@ -127,11 +128,12 @@ node tools/export-fx.mjs lightning/charge-up /tmp/chargeup   # full-size strip +
 
 The cat builds a charge meter and spends it on a power.
 
-- **Charge:** **hold `C`** — the cat crouches and the meter fills at 95/s (full in ~1.1 s).
+- **Charge:** **hold `Shift`** (or `C`) — the cat crouches and the meter fills at 95/s (full in ~1.1 s).
+  Releasing early is a fizzle: the meter is kept, with a puff of grey dust. Losing focus cancels the hold.
   Moving or leaving the ground cancels the crouch and keeps whatever charge you banked.
   Stomping an enemy adds **+28** instantly and collecting a fish **+7**, so fighting is the
   fast way to charge and holding still is the slow way.
-- **Spend:** **release `C`** while the meter is full to cast the selected power. Charge resets.
+- **Spend:** **release `Shift`** while the meter is full to cast the selected power. Charge resets.
 - **Select:** `V` cycles; in dev `1` `2` `3` pick directly. The current power is named under
   the meter.
 

@@ -71,6 +71,23 @@ Copy the PNGs into `assets/icons/` and they are picked up by `powerIcons` in `ga
 The `--want` flag scores the mean colour of the opaque pixels, so you can ask for a blue
 lightning bolt instead of the first yellow one.
 
+## Charge FX (pixelfx)
+
+`assets/fx/lightning-charge.png` + `.json` is `pixelfx`'s **lightning/charge-up**, exported
+actor-free and cropped to its ink:
+
+```bash
+node tools/export-fx.mjs lightning/charge-up /tmp/chargeup   # full-size strip + meta
+# then crop/install (see git history) -> assets/fx/lightning-charge.{png,json}
+```
+
+- **82 frames @ 30 fps**, cropped to 225×157, `burstStart: 48` (the blast at t=1.6 s)
+- **build** (frames 0–47) is driven by the **charge meter**, not time — frame
+  `floor(charge/100 * 47)`
+- **burst** (frames 48–81) plays once when a cast succeeds
+- drawn **behind** the cat at native scale, pivot on the chest, so the cat stays readable
+- if the sheet fails to load, the hand-drawn arcs in `drawPowerFx()` are the fallback
+
 ## Charge → superpower (first slice)
 
 The cat builds a charge meter and spends it on a power.

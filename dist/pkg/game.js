@@ -109,6 +109,15 @@ function text(str, x, y, s = 2, color = "#10141F", align = "left") {
 
 /* ----------------------------------------------------------------- atlas */
 let atlasImg = new Image();
+let fxImg = null, fxMeta = null, fxPivot = null;
+fetch("assets/fx/lightning-charge.json").then((r) => r.json()).then((m) => {
+  fxMeta = m;
+  fxPivot = [115, 121];                 // origin [124,148] minus the 9,27 crop
+  const im = new Image();
+  im.onload = () => { fxImg = im; };
+  im.src = m.image;
+}).catch(() => { /* hand-drawn arcs stay as the fallback */ });
+
 const powerIcons = [new Image(), new Image(), new Image()];
 powerIcons[0].src = "assets/icons/power0.png";
 powerIcons[1].src = "assets/icons/power1.png";
@@ -118,7 +127,7 @@ let ATLAS = null;
 const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
-  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null,
+  hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null, burstT: 0,
 };
 
 /* ---------------------------------------------------------------- sandbox */
@@ -692,6 +701,7 @@ function update(dt) {
   const speed = Math.abs(p.vx);
   p.wake = Math.max(0, p.wake - dt);
   state.emberVfx = Math.max(0, state.emberVfx - dt);
+  state.burstT = Math.max(0, state.burstT - dt);
   p.chargeT = Math.max(0, p.chargeT - dt);
   if (p.charging && !p.dead) {
     if (Math.abs(p.vx) > 24 || !p.onGround) {   // moving cancels the crouch
@@ -819,6 +829,7 @@ function castThunder() {
   p.powerHits = 0;
   p.invuln = Math.max(p.invuln, 0.5);
   state.shake = 8;
+  if (fxMeta) state.burstT = (fxMeta.frames - fxMeta.burstStart) / fxMeta.fps;
   sfx.thunder();
 }
 
@@ -1789,6 +1800,7 @@ function render() {
     ctx.globalAlpha = 1;
   }
   drawEmberRing();
+  drawChargeFx();
   drawPlayer();
   drawPowerFx();
   for (const p of world.particles) {
@@ -1868,6 +1880,28 @@ function drawGrid() {
   // floor line, so jump height reads against something
   ctx.strokeStyle = "rgba(255,255,255,0.22)";
   ctx.beginPath(); ctx.moveTo(0, 470.5); ctx.lineTo(W, 470.5); ctx.stroke();
+}
+
+function drawChargeFx() {
+  if (!fxImg || !fxMeta || state.mode !== "play") return;
+  const [fw, fh] = fxMeta.frame;
+  let idx = -1;
+  if (player.charging) {
+    const last = fxMeta.burstStart - 1;
+    idx = Math.max(0, Math.min(last, Math.floor((state.charge / state.chargeMax) * last)));
+  } else if (state.burstT > 0) {
+    const span = fxMeta.frames - fxMeta.burstStart;
+    const done = 1 - state.burstT / ((fxMeta.frames - fxMeta.burstStart) / fxMeta.fps);
+    idx = fxMeta.burstStart + Math.min(span - 1, Math.floor(done * span));
+  }
+  if (idx < 0 || idx >= fxMeta.frames) return;
+
+  const S = 1.0;
+  const cx = player.x + player.w / 2 - world.cam - 4;
+  const cy = player.y + 34;
+  const dx = Math.round(cx - fxPivot[0] * S);
+  const dy = Math.round(cy - fxPivot[1] * S);
+  ctx.drawImage(fxImg, idx * fw, 0, fw, fh, dx, dy, Math.round(fw * S), Math.round(fh * S));
 }
 
 function drawEmberRing() {

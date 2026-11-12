@@ -23,6 +23,18 @@
     </div>
     <div id="hint">&#8592; &#8594; move &nbsp;·&nbsp; SPACE jump &nbsp;·&nbsp; J paw &nbsp;·&nbsp; hold SHIFT = power &nbsp;·&nbsp; M mute</div>
   </div>
+  <div id="sandbox" hidden>
+    <div class="sb-head"><span>SANDBOX</span><button id="sb-close" aria-label="hide sandbox panel">&times;</button></div>
+    <div id="sb-now">DEV</div>
+    <div id="sb-stages" class="sb-stages"></div>
+    <div class="sb-row">
+      <button data-sb="prev" aria-label="previous stage">&#9664; PREV</button>
+      <button data-sb="next" aria-label="next stage">NEXT &#9654;</button>
+      <button data-sb="restart" aria-label="restart stage">RESTART</button>
+    </div>
+    <div class="sb-note">` hides panel &middot; L next &middot; R restart</div>
+  </div>
+  <button id="sb-open" hidden>DEV</button>
   <script src="ray.js"></script>
   <script src="game.js"></script>
 </body>

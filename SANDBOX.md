@@ -28,6 +28,27 @@ The panel sits bottom-left and lists its own keys.
 The overlay also shows live `anim #frame`, `vy`, `pos` and `ground`, which is how you tell a
 physics bug from an animation bug.
 
+## Stage-skip panel
+
+With `?dev=1` a **SANDBOX** panel appears top-right. It is the fastest way to inspect any
+stage without playing the previous one — especially on a phone, where the `L` key does not
+exist.
+
+| Control | Does |
+|---|---|
+| `2-1 … 2-5` | Jump straight to that stage (Backyard, The Climb, Dust Bin, The Motor, The Den). The current stage is outlined in gold. |
+| `◀ PREV` / `NEXT ▶` | Step one stage at a time. |
+| `RESTART` | Reload the current stage with 3 lives, full boss HP, charge reset. |
+| `×` | Collapse the panel to a small `DEV` pill; click the pill to bring it back. |
+| `` ` `` | Toggle the panel (and the dev text overlay) without touching the mouse. |
+
+The panel is dev-only: on the production URL it is not created and the `DEV` pill stays
+hidden. Buttons release keyboard focus after a click, so Space still jumps instead of
+re-pressing the last button. Keyboard equivalents live in the overlay: `L` next, `R` restart.
+
+`node tools/sandbox.mjs` covers every jump, next/restart, hide/reopen, the production
+hidden state, and tapping the panel on an iPhone viewport.
+
 ## Adding a mechanic
 
 The sandbox stage is a normal level entry with `sandbox: true` and `grid: true` at the end of
@@ -46,6 +67,7 @@ Then, before you believe it works:
 ```bash
 node tools/test.mjs        # 14 gameplay assertions
 node tools/phase11.mjs     # Shift guard, blur cancel, fizzle
+node tools/sandbox.mjs     # stage-skip panel: jump, next, restart, phone, prod hidden
 node tools/reach.mjs       # every platform still reachable
 node tools/playthrough.mjs # autopilot clears the 2D stages
 node tools/ray.mjs         # Dust Bin + Motor first-person rooms

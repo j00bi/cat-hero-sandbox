@@ -123,6 +123,7 @@ node tools/ray.mjs         # Dust Bin door + charge, Motor blast, phone JUMP, fp
 node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
 node tools/story.mjs       # opening cards -> 5-stage flow -> ending card -> win
 node tools/phase11.mjs     # Shift guard, blur cancel, failed-release fizzle
+node tools/sandbox.mjs     # dev stage-skip panel (jump/next/restart, phone, prod hidden)
 ```
 
 - `test.mjs` — boots the game, plays it with real key events: menu → hero select → room,

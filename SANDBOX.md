@@ -75,8 +75,11 @@ lightning bolt instead of the first yellow one.
 
 The cat builds a charge meter and spends it on a power.
 
-- **Gain:** stomp an enemy **+28**, collect a fish **+7**. Meter caps at 100.
-- **Spend:** at 100, press **`C`** to cast the selected power. Charge resets to 0.
+- **Charge:** **hold `C`** — the cat crouches and the meter fills at 95/s (full in ~1.1 s).
+  Moving or leaving the ground cancels the crouch and keeps whatever charge you banked.
+  Stomping an enemy adds **+28** instantly and collecting a fish **+7**, so fighting is the
+  fast way to charge and holding still is the slow way.
+- **Spend:** **release `C`** while the meter is full to cast the selected power. Charge resets.
 - **Select:** `V` cycles; in dev `1` `2` `3` pick directly. The current power is named under
   the meter.
 
@@ -85,9 +88,8 @@ The cat builds a charge meter and spends it on a power.
 | **Thunder Pounce** | 0.42 s lunge at 760 px/s, invulnerable, kills what it passes through, +1 hit on a stunned Dust King | cyan arcs + afterimage |
 | **Frost Nova** | freezes every enemy for 3 s (they stop moving, tinted ice, still harmful on touch) | cyan |
 | **Ember Burst** | 230 px radial kill, also hits a stunned Dust King | gold + fire particles |
-- **Tell:** every time the meter gains charge the cat plays a two-frame power-up flourish
-  (specials 1 and 2); the meter under the hearts pulses when full; each power has its own
-  ring and particles.
+- **Tell:** the crouch pose is held for exactly as long as the key is down (single frame, no
+  flicker); the meter pulses when full; each power has its own ring and particles.
 - **Tuning:** `state.chargeMax`, the `addCharge(28)` / `addCharge(7)` calls, and
   `p.power = 0.42` / `p.vx = p.facing * 760` in `updatePower`.
 

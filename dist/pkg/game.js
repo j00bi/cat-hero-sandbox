@@ -179,7 +179,7 @@ addEventListener("keydown", (e) => {
     keys[k] = true;
   }
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
-  if (e.code === "KeyC") tryPower();
+  if (e.code === "KeyC" && state.mode === "play" && !player.dead) player.charging = true;
   if (e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
@@ -197,7 +197,7 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyT" && state.mode === "play" && world.goal) { player.x = world.goal.x - 60; player.y = world.goal.y - 80; }
     if (e.code === "KeyL" && state.mode === "play") { state.level = Math.min(LEVELS.length - 1, state.level + 1); loadLevel(state.level); }
     if (e.code === "KeyR") loadLevel(state.level);
-    if (e.code === "KeyF") addCharge(state.chargeMax);
+    if (e.code === "KeyF") state.charge = state.chargeMax;
     if (e.code === "Digit1") state.powerId = 0;
     if (e.code === "Digit2") state.powerId = 1;
     if (e.code === "Digit3") state.powerId = 2;
@@ -212,6 +212,10 @@ addEventListener("keydown", (e) => {
 addEventListener("keyup", (e) => {
   const k = MAP[e.code]; if (k) keys[k] = false;
   if (e.code === "Enter" || e.code === "Space") keys.confirm = false;
+  if (e.code === "KeyC" && player.charging) {
+    player.charging = false;
+    if (state.charge >= state.chargeMax) tryPower();   // release at full = cast
+  }
 });
 
 document.querySelectorAll("#touch button").forEach((b) => {
@@ -505,7 +509,7 @@ const LEVELS = [
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false,
 };
 
 function loadLevel(i) {
@@ -689,6 +693,14 @@ function update(dt) {
   p.wake = Math.max(0, p.wake - dt);
   state.emberVfx = Math.max(0, state.emberVfx - dt);
   p.chargeT = Math.max(0, p.chargeT - dt);
+  if (p.charging && !p.dead) {
+    if (Math.abs(p.vx) > 24 || !p.onGround) {   // moving cancels the crouch
+      p.charging = false;
+    } else {
+      state.charge = Math.min(state.chargeMax, state.charge + 95 * dt);
+      p.chargeT = 0.05;               // keeps the crouch alive for the whole hold
+    }
+  }
 
   // stand still long enough and the cat lies down, then falls asleep
   if (p.onGround && speed < 20 && p.attack <= 0 && p.wake <= 0 && !p.dead) state.idleT += dt;
@@ -696,7 +708,7 @@ function update(dt) {
 
   let anim = "idle";
   if (p.power > 0) anim = "bat";
-  else if (p.chargeT > 0) anim = "charge";
+  else if (p.charging || p.chargeT > 0) anim = "charge";
   else if (p.attack > 0) anim = "bat";
   else if (!p.onGround) anim = "jump";
   else if (speed > (p.anim === "run" ? 170 : 210)) anim = "run";
@@ -787,7 +799,6 @@ function update(dt) {
 
 /* --------------------------------------------------------------- powers */
 function addCharge(n) {
-  if (n > 0) player.chargeT = 0.45;
   const before = state.charge;
   state.charge = Math.min(state.chargeMax, state.charge + n);
   if (before < state.chargeMax && state.charge >= state.chargeMax) {

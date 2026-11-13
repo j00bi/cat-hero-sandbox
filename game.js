@@ -1248,7 +1248,11 @@ function updateVacuum(dt) {
       player.react = 0.6;                   // the cat startles, sprite only
       burst(v.toyX, 452, 18, C.goldWarm);
       sfx.gulp();
-      setTimeout(() => sfx.meow(), 130);
+      // the meow is queued, so a reload/death in the next 130 ms must not leak it
+      setTimeout(() => {
+        const nv = world.vac;
+        if (nv && nv.toyEaten && nv.phase === "eaten") sfx.meow();
+      }, 130);
     }
     return;
   }

@@ -6,6 +6,7 @@
 const W = 960, H = 540, TILE = 32;
 const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL = 980;
 const COYOTE = 0.09, JUMP_BUF = 0.12;
+const ART_V = "gemini1";        // bump when assets/cat-atlas.* changes
 
 /* meadow palette taken from the reference mockup */
 /* One palette block. Every draw call reads from here — no colour literals below.
@@ -2585,10 +2586,10 @@ function boot() {
   requestAnimationFrame(frame);
 }
 
-fetch("assets/cat-atlas.json").then((r) => r.json()).then((j) => {
+fetch(`assets/cat-atlas.json?v=${ART_V}`).then((r) => r.json()).then((j) => {
   window.__CAT_ATLAS__ = j;
   atlasImg.onload = boot;
-  atlasImg.src = "assets/cat-atlas.png";
+  atlasImg.src = `assets/cat-atlas.png?v=${ART_V}`;
 }).catch((e) => {
   ctx.fillStyle = "#E7D5B3"; ctx.fillRect(0, 0, W, H);
   text("ATLAS FAILED TO LOAD", W / 2, H / 2, 3, "#CF573C", "center");

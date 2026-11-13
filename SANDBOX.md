@@ -2,12 +2,15 @@
 
 A separate deployment for prototyping mechanics without touching the stable build.
 
-- **Sandbox:** https://j00bi.github.io/cat-hero-sandbox/?dev=1 — boots straight into an empty
-  32 px grid stage, no rooms, no enemies, no goal.
+- **Sandbox:** https://j00bi.github.io/cat-hero-sandbox/ — the dev layer is on by default here,
+  so the stage-skip panel is always one tap away.
 - **Stable:** https://j00bi.github.io/cat-hero-restyle/
 
-Same code, two entry URLs. Without `?dev=1` the sandbox behaves exactly like the stable game —
-the dev layer is one guarded block, so nothing leaks into normal play.
+Same code, two entry URLs. `DEV` is `true` when the page is served from a
+`/cat-hero-sandbox/` path (or `?dev=1` is present), so the deployed sandbox always has the
+panel and the beats; the stable build is a separate repo and never matches that path. Running
+the same `index.html` locally (`npm`-free, any static server) still needs `?dev=1` for the dev
+layer, which is what the suites check.
 
 ## Dev tools (`?dev=1`)
 

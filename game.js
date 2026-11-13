@@ -702,6 +702,8 @@ function gotoBeat(kind) {
     RAY.debugTeleport(R.motor.x - Math.cos(ang) * 1.2, R.motor.y - Math.sin(ang) * 1.2,
                       Math.cos(ang), Math.sin(ang));
     state.charge = state.chargeMax;
+    // fire it too: one tap on a phone should play the beat, not load the gun
+    RAY.release();
     return true;
   }
   return false;

@@ -104,7 +104,8 @@ await mp.waitForTimeout(350);
 out.beatBlast = await mp.evaluate(() => ({
   world: window.__GAME.world.level.name,
   motor: !!(window.__GAME.RAY && window.__GAME.RAY.state && window.__GAME.RAY.state.motor),
-  charged: window.__GAME.state.charge >= window.__GAME.state.chargeMax,
+  // one tap should fire the overload, not just load it
+  fired: !!(window.__GAME.RAY && window.__GAME.RAY.state && window.__GAME.RAY.state.blast),
 }));
 await mp.screenshot({ path: new URL("17-sandbox-mobile.png", OUT).pathname });
 await mctx.close();
@@ -123,7 +124,7 @@ out.checks = {
   mobileWorks: out.mobileMotor.level === 3 && out.mobileMotor.world === "THE MOTOR"
     && out.mobileBoss.level === 4 && out.mobileBoss.boss,
   beatSwallowWorks: out.beatSwallow.vac && out.beatSwallow.ahead > 100 && out.beatSwallow.ahead < 260,
-  beatBlastWorks: out.beatBlast.motor && out.beatBlast.charged && out.beatBlast.world === "THE MOTOR",
+  beatBlastWorks: out.beatBlast.motor && out.beatBlast.fired && out.beatBlast.world === "THE MOTOR",
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

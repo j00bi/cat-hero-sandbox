@@ -68,6 +68,7 @@ Then, before you believe it works:
 node tools/test.mjs        # 14 gameplay assertions
 node tools/phase11.mjs     # Shift guard, blur cancel, fizzle
 node tools/sandbox.mjs     # stage-skip panel: jump, next, restart, phone, prod hidden
+node tools/transitions.mjs # vacuum swallow beat + motor blast handoff
 node tools/reach.mjs       # every platform still reachable
 node tools/playthrough.mjs # autopilot clears the 2D stages
 node tools/ray.mjs         # Dust Bin + Motor first-person rooms
@@ -79,6 +80,24 @@ node tools/design.mjs      # HUD stays out of the play band
 `tools/playthrough.mjs` is the one that catches mechanics that accidentally make a room
 unfair — if a dumb bot holding right can't finish, a player will hit the same wall. It
 skips the two ray rooms; `tools/ray.mjs` drives those.
+
+## Transition beats
+
+Two hard cuts became readable beats. Timings live at the top of `game.js`
+(`VAC_LUNGE_GAP`, `VAC_SWALLOW`, `BLAST_HOLD`, `BLAST_REVEAL`).
+
+**Vacuum swallow** — `world.vac.phase` is `idle -> swallowing -> eaten`. Crossing the
+`vacuum_bg` trigger sends the vacuum in; near the cushion it commits, brakes with the
+intake over the ball, and the ball is dragged in and shrunk over `VAC_SWALLOW` while
+suction streaks run. On `eaten` there is a white flash, a shake, a gulp and the cat
+startles (`player.react`, sprite jitter + a gold `!`) — no physics change. Every timer
+lives on `world.vac`, so `loadLevel` rebuilds the beat and a death cancels it.
+
+**Motor blast handoff** — `beginBlastHandoff()` in `game.js`, fired by `ray.js`'s
+`onBlast`, holds the white flash (`BLAST_HOLD`), swaps the boss room in behind it with
+`{ introBlast: true, holdFlash: true }`, then fades it out (`BLAST_REVEAL`). The
+`holdFlash` flag stops `introBlast` setting a second flash. `state.handoff` is the
+sampled state (`t`, `swapped`, `alpha`, `done`).
 
 ## Ray rooms
 

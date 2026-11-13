@@ -1206,7 +1206,7 @@ function vacuumCushion(v) {
   const dk = Math.max(0, Math.min(1, (k - 0.35) / 0.65));
   const e = dk * dk * (3 - 2 * dk);
   return {
-    x: v.toyX + (v.x + 39 - v.toyX) * e,
+    x: v.toyX + (v.x + 52 - v.toyX) * e,     // into the intake slot at the shell's centre
     y: 456 + (440 - 456) * e,
     s: 1 - 0.82 * e,
     k,
@@ -1229,7 +1229,7 @@ function updateVacuum(dt) {
     v.x -= 500 * dt;
     if (v.x < v.toyX + VAC_LUNGE_GAP) {     // it has seen the cushion: commit
       v.phase = "swallowing"; v.phaseT = 0;
-      v.lungeFrom = v.x; v.lungeTo = v.toyX - 26;   // mouth stops over the cushion
+      v.lungeFrom = v.x; v.lungeTo = v.toyX - 40;   // intake stops over the cushion
       state.shake = Math.max(state.shake, 4);
       sfx.lunge();
     }
@@ -1826,27 +1826,29 @@ function drawBall(wx, wy = 456, s = 1) {
 function drawVacuum() {
   const v = world.vac;
   if (!v || !v.started || v.done) return;
-  if (!v.toyEaten) {
-    const c = vacuumCushion(v);
-    drawBall(c.x, c.y, c.s);
-    if (v.phase === "swallowing") {          // suction streaks sell the pull
-      const mouthX = v.x + 39 - world.cam, mouthY = 440;
-      ctx.strokeStyle = "rgba(235,237,233,0.55)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 3; i++) {
-        const k = 0.35 + 0.6 * ((v.phaseT * 5 + i * 0.33) % 1);
-        const sx = c.x - world.cam + (mouthX - (c.x - world.cam)) * k;
-        const sy = c.y + (mouthY - c.y) * k + (i - 1) * 7;
-        ctx.beginPath(); ctx.moveTo(Math.round(sx), Math.round(sy));
-        ctx.lineTo(Math.round(sx + 9), Math.round(sy)); ctx.stroke();
-      }
-    }
-  }
   // idle roomba belongs to the background; the beat draws in front of the goal
   // house and the sleeping cat, otherwise the drag is hidden behind them
+  const idle = v.phase === "idle";
   drawRoomba({ x: v.x, y: 470 - 72, w: 104, h: 72, dir: -1, spin: state.t * 7,
-               state: v.phase === "idle" ? "patrol" : "charge",
-               dead: false, flash: 0 }, 0.6, v.phase === "idle" ? 0.5 : 0.12);
+               state: idle ? "patrol" : "charge",
+               dead: false, flash: 0 }, idle ? 0.6 : 0.95, idle ? 0.5 : 0.12);
+
+  // the cushion is drawn over the shell so it visibly sinks into the intake slot
+  if (v.toyEaten) return;
+  const c = vacuumCushion(v);
+  drawBall(c.x, c.y, c.s);
+  if (v.phase === "swallowing") {          // suction streaks sell the pull
+    const mouthX = v.x + 52 - world.cam, mouthY = 438;
+    ctx.strokeStyle = "rgba(235,237,233,0.55)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const k = 0.35 + 0.6 * ((v.phaseT * 5 + i * 0.33) % 1);
+      const sx = c.x - world.cam + (mouthX - (c.x - world.cam)) * k;
+      const sy = c.y + (mouthY - c.y) * k + (i - 1) * 7;
+      ctx.beginPath(); ctx.moveTo(Math.round(sx), Math.round(sy));
+      ctx.lineTo(Math.round(sx + 9), Math.round(sy)); ctx.stroke();
+    }
+  }
 }
 
 function drawVacuumBg() {                      // ambient pass-by, behind the level
@@ -1906,9 +1908,10 @@ function drawPlayer() {
   ctx.restore();
 
   if (p.react > 0) {                      // the one-frame "!" above the cat
-    const ax = Math.round(p.x + p.w / 2 - world.cam) + 13;
-    const ay = Math.round(p.y - 20 - Math.min(6, (1 - p.react / 0.6) * 10));
+    const ax = Math.round(p.x + p.w / 2 - world.cam) + 14;
+    const ay = Math.round(p.y - 24 - Math.min(6, (1 - p.react / 0.6) * 10));
     ctx.globalAlpha = Math.min(1, p.react * 4);
+    text("!", ax + 1, ay + 1, 2, C.ink, "center");   // 1 px ink shadow keeps it readable
     text("!", ax, ay, 2, C.gold, "center");
     ctx.globalAlpha = 1;
   }
@@ -2689,6 +2692,7 @@ function updateHandoff(dt) {
     state.level = h.level;
     state.checkpoint = 0;
     loadLevel(h.level, { introBlast: true, holdFlash: true });
+    syncSandbox();                  // dev panel label follows the handoff
   }
   if (!h.swapped) h.alpha = Math.min(1, h.t / 0.10);
   else h.alpha = Math.max(0, 1 - (h.t - h.hold) / h.reveal);

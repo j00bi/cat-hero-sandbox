@@ -164,6 +164,12 @@ const state = {
 // Open the page with ?dev=1 to get the sandbox tools. Without it the game is unchanged.
 // The sandbox deployment exists to be poked at, so the stage-skip panel is on by
 // default there; the stable build is a different repo and never matches this host.
+/* ---------------------------------------------------------- sensor map */
+// Hold TAB: the room's sensor schematic. You see the whole floor at once -
+// patrols, the vacuum's cone, what you have and have not collected - but you
+// cannot act while looking. Information instead of another camera.
+const mapView = { on: false, t: 0, sweep: 0 };
+
 const SANDBOX_BUILD = /\/cat-hero-sandbox\//.test(location.pathname);
 const DEV = new URLSearchParams(location.search).has("dev") || SANDBOX_BUILD;
 const dev = { timeScale: 1, hitboxes: false, god: false, overlay: true, fps: 60 };
@@ -250,7 +256,8 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyR") restartStage();
     if (e.code === "KeyF") state.charge = state.chargeMax;
     if (e.code === "Digit1") state.powerId = 0;
-    if (e.code === "KeyQ") shiftSize(-1);
+    if (e.code === "Tab") { e.preventDefault(); setMap(true); }
+  if (e.code === "KeyQ") shiftSize(-1);
     if (e.code === "KeyE") shiftSize(1);
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
@@ -261,6 +268,7 @@ addEventListener("keydown", (e) => {
   }
 });
 addEventListener("keyup", (e) => {
+  if (e.code === "Tab") { e.preventDefault(); setMap(false); return; }
   const k = MAP[e.code]; if (k) keys[k] = false;
   if (e.code === "Enter" || e.code === "Space") keys.confirm = false;
   if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") releaseCharge();
@@ -911,6 +919,10 @@ function dust(x, y, n) {
 
 /* ------------------------------------------------------------------ turn */
 function update(dt) {
+  if (mapView.on) {                 // looking is not acting
+    keys.left = keys.right = keys.jump = keys.bat = false;
+    queued.jump = false; queued.bat = false;
+  }
   state.t += dt;
   if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
   if (state.mode === "card" && state.card) { state.card.t += dt; return; }
@@ -2060,6 +2072,126 @@ function drawPauseCard() {
   text("P OR ESC TO RESUME", W / 2, cy + ch - 26, 1, C.paperEdge, "center");
 }
 
+function setMap(on) {
+  const want = !!on && !!(world.level && !world.level.ray) && state.mode === "play";
+  if (want && !mapView.on) mapView.t = 0;
+  mapView.on = want;
+  return mapView.on;
+}
+
+function drawMap() {
+  if (!mapView.on) return;
+  const L = world.level;
+  if (!L || L.ray) return;
+  mapView.t = Math.min(1, mapView.t + 0.14);
+  mapView.sweep = (mapView.sweep + 0.012) % 1;
+  const a = mapView.t;
+
+  const pad = 54, head = 64;
+  const roomH = Math.max(...L.solids.map((q) => q.y + q.h), H * 0.9);
+  const k = Math.min((W - pad * 2) / L.width, (H - pad * 2 - head) / roomH);
+  const ox = (W - L.width * k) / 2;
+  const oy = pad + head + (H - pad * 2 - head - roomH * k) / 2;
+  const X = (x) => ox + x * k, Y = (y) => oy + y * k;
+
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "rgba(8,12,18,0.90)";
+  ctx.fillRect(0, 0, W, H);
+
+  // grid
+  ctx.strokeStyle = "rgba(115,190,211,0.10)";
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx <= L.width; gx += 160) {
+    ctx.beginPath(); ctx.moveTo(X(gx), Y(0)); ctx.lineTo(X(gx), Y(roomH)); ctx.stroke();
+  }
+  for (let gy = 0; gy <= roomH; gy += 80) {
+    ctx.beginPath(); ctx.moveTo(X(0), Y(gy)); ctx.lineTo(X(L.width), Y(gy)); ctx.stroke();
+  }
+
+  // walls
+  for (const q of L.solids) {
+    ctx.fillStyle = "rgba(115,190,211,0.20)";
+    ctx.fillRect(X(q.x), Y(q.y), Math.max(1, q.w * k), Math.max(1, q.h * k));
+    ctx.strokeStyle = "rgba(115,190,211,0.45)";
+    ctx.strokeRect(X(q.x) + 0.5, Y(q.y) + 0.5, Math.max(1, q.w * k) - 1, Math.max(1, q.h * k) - 1);
+  }
+  // moving platforms
+  for (const pl of world.plats) {
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(X(pl.x), Y(pl.y), Math.max(1, pl.w * k), Math.max(2, pl.h * k));
+  }
+
+  // coin blips still out there
+  for (const c of world.coins) {
+    if (c.got) continue;
+    ctx.fillStyle = "rgba(226,182,75,0.9)";
+    ctx.fillRect(X(c.x) - 1, Y(c.y) - 1, 3, 3);
+  }
+
+  // enemy blips + the ground they walk
+  for (const e of world.enemies) {
+    if (!e.alive) continue;
+    ctx.strokeStyle = "rgba(207,87,60,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(X(e.min), Y(roomH * 0.92)); ctx.lineTo(X(e.max), Y(roomH * 0.92)); ctx.stroke();
+    ctx.fillStyle = "#CF573C";
+    ctx.fillRect(X(e.x + e.w / 2) - 2, Y(e.y + e.h / 2) - 2, 5, 5);
+  }
+
+  // the vacuum: its cone is the reason to look
+  const v = world.vac;
+  if (v && !v.done) {
+    const vx = v.started ? v.x : v.trigger;
+    ctx.fillStyle = "rgba(207,87,60,0.18)";
+    ctx.beginPath();
+    ctx.moveTo(X(vx), Y(roomH * 0.80));
+    ctx.lineTo(X(vx - 260), Y(roomH * 0.96));
+    ctx.lineTo(X(vx + 260), Y(roomH * 0.96));
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#E2B64B";
+    ctx.fillRect(X(vx) - 3, Y(roomH * 0.80) - 3, 6, 6);
+  }
+
+  // goal
+  if (world.goal) {
+    ctx.fillStyle = "rgba(115,190,211,0.95)";
+    ctx.beginPath();
+    ctx.moveTo(X(world.goal.x), Y(world.goal.y) - 5);
+    ctx.lineTo(X(world.goal.x) + 5, Y(world.goal.y));
+    ctx.lineTo(X(world.goal.x), Y(world.goal.y) + 5);
+    ctx.lineTo(X(world.goal.x) - 5, Y(world.goal.y));
+    ctx.closePath(); ctx.fill();
+  }
+
+  // the cat, with the way it is facing
+  const px = X(player.x + player.w / 2), py = Y(player.y + player.h / 2);
+  ctx.strokeStyle = "rgba(140,255,193,0.55)";
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px + player.facing * 46, py - 10);
+  ctx.stroke();
+  ctx.fillStyle = "#8CFFC1";
+  ctx.beginPath(); ctx.arc(px, py, 4, 0, 6.283); ctx.fill();
+
+  // sweep line
+  const sx = X(0) + (X(L.width) - X(0)) * mapView.sweep;
+  const grad = ctx.createLinearGradient(sx - 60, 0, sx, 0);
+  grad.addColorStop(0, "rgba(115,190,211,0)");
+  grad.addColorStop(1, "rgba(115,190,211,0.18)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(sx - 60, Y(0), 60, Y(roomH) - Y(0));
+
+  // header
+  text("SENSOR", pad - 10, pad + 14, 3, "rgba(140,255,193,0.95)");
+  text(`${L.world}  ${L.name}`, pad - 10, pad + 40, 2, "rgba(230,238,244,0.8)");
+  text("HOLD TAB", W - pad + 10, pad + 14, 2, "rgba(230,238,244,0.45)", "right");
+  text("you cannot act while watching", W - pad + 10, pad + 36, 1, "rgba(230,238,244,0.35)", "right");
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 function drawHUD() {
   const L = LEVELS[state.level];
   state.hudRects.length = 0;
@@ -2376,6 +2508,7 @@ function render() {
   ctx.restore();
 
   drawHUD();
+  drawMap();
   drawScreenFlash();
   drawBlastHandoff();
   drawDev();
@@ -2829,7 +2962,7 @@ function boot() {
   initSandboxUI();
   window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
                     showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat,
-                    shiftSize, setSize, SZ, SHIFT_COST, hurt };
+                    shiftSize, setSize, SZ, SHIFT_COST, hurt, setMap, mapView };
   requestAnimationFrame(frame);
 }
 

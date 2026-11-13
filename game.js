@@ -6,7 +6,7 @@
 const W = 960, H = 540, TILE = 32;
 const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL = 980;
 const COYOTE = 0.09, JUMP_BUF = 0.12;
-const ART_V = "gemini1";        // bump when assets/cat-atlas.* changes
+const ART_V = "gemini2";        // bump when assets/cat-atlas.* changes
 
 /* meadow palette taken from the reference mockup */
 /* One palette block. Every draw call reads from here — no colour literals below.

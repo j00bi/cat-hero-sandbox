@@ -5,6 +5,18 @@
 
 const W = 960, H = 540, TILE = 32;
 const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL = 980;
+
+/* SHIFT — the size ladder. Half, normal, double, one bit apart.
+   Shifting spends the same meter the lightning pounce uses, so fitting through a
+   vent always costs you the burst you might have wanted later. */
+const SZ = {
+  small:  { s: 0.5, speed: 1.10, jump: -640, stomp: 0 },
+  normal: { s: 1.0, speed: 1.00, jump: -690, stomp: 1 },
+  big:    { s: 2.0, speed: 0.75, jump: -600, stomp: 2 },
+};
+const SZ_ORDER = ["small", "normal", "big"];
+const SHIFT_COST = 25;      // charge spent per shift
+const SHIFT_TIME = 0.25;    // committed frames, no input
 const COYOTE = 0.09, JUMP_BUF = 0.12;
 const ART_V = "gemini2";        // bump when assets/cat-atlas.* changes
 
@@ -238,6 +250,8 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyR") restartStage();
     if (e.code === "KeyF") state.charge = state.chargeMax;
     if (e.code === "Digit1") state.powerId = 0;
+    if (e.code === "KeyQ") shiftSize(-1);
+    if (e.code === "KeyE") shiftSize(1);
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
@@ -554,7 +568,13 @@ const LEVELS_ALL = [
     spawn: { x: 620, y: 380 },
     sandbox: true,
     grid: true,
-    solids: [rect(0, 470, 2560, 90)],
+    solids: [
+      rect(0, 470, 2560, 90),
+      // SHIFT demo: a 40 px crawl. Normal (42) and big (84) are stopped; half (21) clears.
+      rect(880, 0, 220, 430),
+      // and a shelf the normal cat can jump onto but the half cat cannot reach
+      rect(1320, 356, 200, 24),
+    ],
     coins: [],
     enemies: [],
     goal: null,
@@ -592,6 +612,7 @@ const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
   attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false, react: 0,
+  size: "normal", sc: 1, shiftT: 0,
 };
 
 function loadLevel(i, opts = {}) {
@@ -636,6 +657,8 @@ function loadLevel(i, opts = {}) {
   state.totalCoins = L.coins.length;
   state.coins = 0;
   state.powerId = 0;
+  player.size = "normal"; player.sc = 1; player.shiftT = 0;
+  player.w = 34; player.h = 42;
   state.idleT = 0;
   const vd = (L.decor || []).find((d) => d.t === "vacuum_bg");
   world.vac = vd ? { trigger: vd.x, toyX: vd.x + 220, toyEaten: false,
@@ -805,6 +828,46 @@ function movePlayer(dt) {
   if (p.y > H + 200) hurt(true);
 }
 
+/* ------------------------------------------------------------- shifting */
+function shiftSize(dir) {
+  const i = SZ_ORDER.indexOf(player.size);
+  const next = SZ_ORDER[Math.max(0, Math.min(SZ_ORDER.length - 1, i + dir))];
+  if (next === player.size) return false;
+  return setSize(next);
+}
+
+function setSize(name) {
+  const p = player, spec = SZ[name];
+  if (!spec || p.size === name || p.dead) return false;
+  if (state.charge < SHIFT_COST) { beep(150, 0.05, "square", 0.04); return false; }
+  const w = Math.round(34 * spec.s), h = Math.round(42 * spec.s);
+  const nx = p.x + (p.w - w) / 2, ny = p.y + p.h - h;
+  // growing needs headroom; shrinking is always legal, so you can never be trapped
+  if (spec.s > 1 && solidHit(rect(nx, ny, w, h))) {
+    beep(140, 0.07, "square", 0.05, 90);
+    dust(p.x + p.w / 2, p.y + p.h, 3);
+    return false;
+  }
+  state.charge -= SHIFT_COST;
+  p.size = name; p.w = w; p.h = h; p.x = nx; p.y = ny;
+  p.shiftT = SHIFT_TIME;
+  p.vx *= spec.speed;
+  beep(spec.s > 1 ? 300 : 520, 0.06, "square", 0.06);
+  dust(p.x + p.w / 2, p.y + p.h, spec.s > 1 ? 8 : 4);
+  return true;
+}
+
+/* Every respawn is a fresh cat: a 2x body carried through a death could spawn
+   inside geometry it no longer fits in. */
+function resetSize() {
+  const p = player;
+  if (p.size === "normal") { p.sc = 1; return; }
+  const feet = p.y + p.h;
+  p.size = "normal"; p.sc = 1; p.w = 34; p.h = 42;
+  p.y = feet - p.h;
+  p.shiftT = 0;
+}
+
 function hurt(fell) {
   const p = player;
   if (p.dead || p.invuln > 0) return;
@@ -820,10 +883,11 @@ function hurt(fell) {
     return;
   }
   p.invuln = 1.4;
-  if (fell) { p.x = p.spawnX; p.y = p.spawnY; p.vx = p.vy = 0; }
+  if (fell) { resetSize(); p.x = p.spawnX; p.y = p.spawnY; p.vx = p.vy = 0; }
   else { p.vx = -p.facing * 240; p.vy = -320; }
   // Boss room: every hit is a clean retry — back to the door, boss at full health.
   if (world.boss && !world.boss.dead) {
+    resetSize();
     p.x = p.spawnX; p.y = p.spawnY; p.vx = 0; p.vy = 0;
     p.ride = null; p.invuln = 1.6;
     resetBoss();
@@ -873,19 +937,24 @@ function update(dt) {
   if (want !== 0) {
     p.vx += want * ACCEL * dt;
     p.facing = want;
-    p.vx = Math.max(-MOVE, Math.min(MOVE, p.vx));
+    const mv = MOVE * SZ[p.size].speed;
+    p.vx = Math.max(-mv, Math.min(mv, p.vx));
   } else {
     const s = Math.sign(p.vx);
     p.vx -= s * FRIC * dt;
     if (Math.sign(p.vx) !== s) p.vx = 0;
   }
 
+  // size: ease the art toward the body, count down the committed shift
+  p.sc += (SZ[p.size].s - p.sc) * Math.min(1, dt * 16);
+  p.shiftT = Math.max(0, p.shiftT - dt);
+
   // jump
   p.coyote = p.onGround ? COYOTE : Math.max(0, p.coyote - dt);
   if (queued.jump) { p.buf = JUMP_BUF; queued.jump = false; }
   p.buf = Math.max(0, p.buf - dt);
   if (p.buf > 0 && p.coyote > 0) {
-    p.vy = JUMP_V; p.buf = 0; p.coyote = 0; p.onGround = false;
+    p.vy = SZ[p.size].jump; p.buf = 0; p.coyote = 0; p.onGround = false;
     sfx.jump(); dust(p.x + p.w / 2, p.y + p.h, 5);
   }
   if (!keys.jump && p.vy < -400) p.vy = -400;   // tapping still gives a short hop
@@ -1877,7 +1946,9 @@ function drawPlayer() {
     if (lv > 0.85) ctx.drawImage(rimCanvas, 0, 0, f.w, f.h, ox, oy - 1, f.w, f.h);
   }
 
-  ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, -Math.round(f.w / 2), -f.h + (f.foot || 0), f.w, f.h);
+  const sc = p.sc;
+  ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h,
+    -Math.round((f.w * sc) / 2), -f.h * sc + (f.foot || 0) * sc, f.w * sc, f.h * sc);
   ctx.restore();
 
   if (p.react > 0) {                      // the one-frame "!" above the cat
@@ -2034,6 +2105,9 @@ function drawHUD() {
     ctx.drawImage(icon, cx0 + cw + 8, cy0 - 5, 18, 18);
   }
   text(powSel.name, cx0, cy0 + 22, 1, powSel.tint);
+  const szLabel = player.size === "big" ? "x2" : player.size === "small" ? "x1/2" : "x1";
+  text(szLabel, cx0 + cw - 26, cy0 + 22, 1,
+       state.charge >= SHIFT_COST ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)");
   if (frac >= 1) {
     ctx.globalAlpha = 0.35 + Math.sin(state.t * 10) * 0.3;
     ctx.fillStyle = powSel.tint;
@@ -2638,7 +2712,7 @@ function drawDev() {
   text(`anim ${p.anim} #${p.frame}  vy ${Math.round(p.vy)}`, 30, H - 102, 1, "#FFFFFF");
   text(`pos ${Math.round(p.x)},${Math.round(p.y)}  ground ${p.onGround ? 1 : 0}`, 30, H - 86, 1, "#FFFFFF");
   text(`H hitbox  G god  [ ] speed  N spawn`, 30, H - 70, 1, "#9AA7B2");
-  text(`K clear  T goal  L next  F charge`, 30, H - 54, 1, "#9AA7B2");
+  text(`K clear  T goal  L next  F charge  Q/E shift`, 30, H - 54, 1, "#9AA7B2");
   text(`charge ${Math.round(state.charge)}/${state.chargeMax}  C = power`, 30, H - 38, 1, "#8CFFC1");
 }
 
@@ -2754,7 +2828,8 @@ function boot() {
   fit();
   initSandboxUI();
   window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
-                    showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat };
+                    showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat,
+                    shiftSize, setSize, SZ, SHIFT_COST, hurt };
   requestAnimationFrame(frame);
 }
 

@@ -8,6 +8,12 @@ const GRAV = 2200, JUMP_V = -690, MOVE = 272, ACCEL = 2600, FRIC = 2400, MAXFALL
 const COYOTE = 0.09, JUMP_BUF = 0.12;
 const ART_V = "gemini2";        // bump when assets/cat-atlas.* changes
 
+/* transition beats — timing only, no physics lives here */
+const VAC_LUNGE_GAP = 96;       // px before the cushion where the vacuum commits
+const VAC_SWALLOW = 0.38;       // s of drag-in before the cushion is gone
+const BLAST_HOLD = 0.42;        // s of held white before the boss room swaps in
+const BLAST_REVEAL = 0.42;      // s to fade from white back into the new room
+
 /* meadow palette taken from the reference mockup */
 /* One palette block. Every draw call reads from here — no colour literals below.
    Values sampled from the running game with PIL (see DESIGN.md). */
@@ -139,12 +145,15 @@ const state = {
   mode: "title", t: 0, level: 0, lives: 3, coins: 0, totalCoins: 0, fish: 0,
   setIndex: 0, shake: 0, flash: 0, muted: false, best: 0,
   hudRects: [], idleT: 0, charge: 0, chargeMax: 100, powerId: 0, emberVfx: 0, ringColor: null, burstT: 0, hitstop: 0, decalT: 0, decalX: 0, decalY: 0,
-  card: null,
+  card: null, handoff: null,
 };
 
 /* ---------------------------------------------------------------- sandbox */
 // Open the page with ?dev=1 to get the sandbox tools. Without it the game is unchanged.
-const DEV = new URLSearchParams(location.search).has("dev");
+// The sandbox deployment exists to be poked at, so the stage-skip panel is on by
+// default there; the stable build is a different repo and never matches this host.
+const SANDBOX_BUILD = /\/cat-hero-sandbox\//.test(location.pathname);
+const DEV = new URLSearchParams(location.search).has("dev") || SANDBOX_BUILD;
 const dev = { timeScale: 1, hitboxes: false, god: false, overlay: true, fps: 60 };
 let sbEl = null, sbOpen = null, sbNow = null, sbStages = null;
 
@@ -182,6 +191,9 @@ const sfx = {
   bossHit: () => { beep(160, 0.14, "square", 0.13, 70); setTimeout(() => beep(90, 0.2, "triangle", 0.10), 70); },
   thunder: () => { beep(120, 0.22, "sawtooth", 0.14, 60); setTimeout(() => beep(700, 0.1, "square", 0.10, 180), 40); },
   bossDie: () => { [300, 240, 180, 120, 70].forEach((f, i) => setTimeout(() => beep(f, 0.22, "sawtooth", 0.11, f * 0.5), i * 130)); },
+  lunge: () => beep(120, 0.24, "sawtooth", 0.11, 460),
+  gulp: () => { beep(340, 0.26, "sawtooth", 0.11, 60); setTimeout(() => beep(70, 0.20, "triangle", 0.09), 150); },
+  meow: () => { beep(660, 0.10, "triangle", 0.08, 920); setTimeout(() => beep(920, 0.16, "triangle", 0.07, 520), 95); },
 };
 
 /* ----------------------------------------------------------------- input */
@@ -581,7 +593,7 @@ const DEMO_COUNT = 5;
 const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
-  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false,
+  attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false, react: 0,
 };
 
 function loadLevel(i, opts = {}) {
@@ -629,14 +641,16 @@ function loadLevel(i, opts = {}) {
   state.idleT = 0;
   const vd = (L.decor || []).find((d) => d.t === "vacuum_bg");
   world.vac = vd ? { trigger: vd.x, toyX: vd.x + 220, toyEaten: false,
-                     started: false, done: false, t: 0, x: 0 } : null;
+                     started: false, phase: "idle", phaseT: 0, done: false, t: 0, x: 0 } : null;
+  player.react = 0;
   paused = false;
   state.mode = "play";
   document.body.classList.add("playing");
   if (opts.introBlast && world.boss) {          // free first stomp after a ray-room blast
     player.x = 200; player.y = 120; player.vy = -300;
     world.boss.state = "stun"; world.boss.stun = 3.0; world.boss.t = 0;
-    state.flash = 1; state.shake = 10;
+    state.shake = 10;
+    if (!opts.holdFlash) state.flash = 1;       // a handoff owns the white; never flash twice
   }
 }
 
@@ -794,6 +808,8 @@ function movePlayer(dt) {
 function hurt(fell) {
   const p = player;
   if (p.dead || p.invuln > 0) return;
+  cancelVacuum();                 // a death cancels the swallow beat; so does loadLevel
+  p.react = 0;
   state.lives--;
   state.shake = 12;
   sfx.hit();
@@ -835,6 +851,7 @@ function update(dt) {
   if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
   if (state.mode === "card" && state.card) { state.card.t += dt; return; }
   if (state.mode !== "play" || paused) { updateParticles(dt); return; }
+  if (state.handoff) { updateHandoff(dt); updateParticles(dt); return; }
   if (world.level && world.level.ray && state.mode === "play") { RAY.update(dt); return; }
 
   const p = player;
@@ -895,6 +912,7 @@ function update(dt) {
   p.animT += dt;
   const speed = Math.abs(p.vx);
   p.wake = Math.max(0, p.wake - dt);
+  p.react = Math.max(0, p.react - dt);
   state.emberVfx = Math.max(0, state.emberVfx - dt);
   state.burstT = Math.max(0, state.burstT - dt);
   state.decalT = Math.max(0, state.decalT - dt);
@@ -1170,20 +1188,73 @@ function killBoss() {
   burst(b.x + b.w / 2, b.y + b.h / 2, 24, C.bossSpark);
 }
 
+/* The vacuum swallow is one readable beat, not a pop:
+   idle -> (trigger) -> lunging at the cushion -> dragging it in -> eaten.
+   Every timer lives on world.vac, so a level reload rebuilds the beat from
+   scratch and hurt() cancels it — nothing leaks across rooms. */
+function cancelVacuum() {
+  const v = world.vac;
+  if (!v || v.done || !v.started) return;
+  v.started = false; v.phase = "idle"; v.phaseT = 0; v.t = 0; v.x = 0; v.toyEaten = false;
+}
+
+function vacuumCushion(v) {
+  if (v.phase !== "swallowing") return { x: v.toyX, y: 456, s: 1, k: 0 };
+  const k = Math.min(1, v.phaseT / VAC_SWALLOW);
+  // the vacuum lunges and brakes first; the cushion only starts moving once
+  // the intake is nearly on it, then shrinks into the mouth
+  const dk = Math.max(0, Math.min(1, (k - 0.35) / 0.65));
+  const e = dk * dk * (3 - 2 * dk);
+  return {
+    x: v.toyX + (v.x + 39 - v.toyX) * e,
+    y: 456 + (440 - 456) * e,
+    s: 1 - 0.82 * e,
+    k,
+  };
+}
+
 function updateVacuum(dt) {
   const v = world.vac;
   if (!v || v.done) return;
   if (!v.started) {
-    if (player.x > v.trigger) { v.started = true; v.x = world.cam + W + 140; v.t = 0; }
+    if (player.x > v.trigger) {
+      v.started = true; v.phase = "idle"; v.phaseT = 0; v.t = 0;
+      v.x = world.cam + W + 140;
+    }
     return;
   }
   v.t += dt;
-  v.x -= 500 * dt;
-  if (!v.toyEaten && v.x < v.toyX) {
-    v.toyEaten = true;
-    beep(220, 0.15, "sawtooth", 0.05, 90);
-    burst(v.toyX, 452, 10, C.goldWarm);
+
+  if (v.phase === "idle") {
+    v.x -= 500 * dt;
+    if (v.x < v.toyX + VAC_LUNGE_GAP) {     // it has seen the cushion: commit
+      v.phase = "swallowing"; v.phaseT = 0;
+      v.lungeFrom = v.x; v.lungeTo = v.toyX - 26;   // mouth stops over the cushion
+      state.shake = Math.max(state.shake, 4);
+      sfx.lunge();
+    }
+    return;
   }
+
+  if (v.phase === "swallowing") {
+    v.phaseT += dt;
+    const k = Math.min(1, v.phaseT / VAC_SWALLOW);
+    const e = 1 - Math.pow(1 - k, 3);       // lunge, then brake onto the cushion
+    v.x = v.lungeFrom + (v.lungeTo - v.lungeFrom) * e;
+    if (k >= 1) {
+      v.phase = "eaten"; v.phaseT = 0;
+      v.toyEaten = true;
+      state.flash = 0.7; state.shake = 12;
+      player.react = 0.6;                   // the cat startles, sprite only
+      burst(v.toyX, 452, 18, C.goldWarm);
+      sfx.gulp();
+      setTimeout(() => sfx.meow(), 130);
+    }
+    return;
+  }
+
+  // eaten: the vac keeps rolling out of frame, then is gone for the rest of the level
+  v.x -= 520 * dt;
   if (v.t >= 3) v.done = true;
 }
 
@@ -1735,26 +1806,59 @@ function drawRoomba(b, scale = 1, dim = 0) {
 
 function drawBoss() { drawRoomba(world.boss); }
 
-function drawBall(wx) {
-  const x = Math.round(wx - world.cam), y = 456;
+function drawBall(wx, wy = 456, s = 1) {
+  ctx.save();
+  ctx.translate(Math.round(wx - world.cam), Math.round(wy));
+  if (s !== 1) ctx.scale(s, s);
   ctx.fillStyle = "rgba(9,10,20,0.25)";
-  ctx.beginPath(); ctx.ellipse(x, y + 12, 13, 5, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 12, 13, 5, 0, 0, 7); ctx.fill();
   ctx.fillStyle = C.redDeep;
-  ctx.beginPath(); ctx.arc(x, y, 12, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, 12, 0, 7); ctx.fill();
   ctx.fillStyle = C.red;
-  ctx.beginPath(); ctx.arc(x - 1, y - 1, 10, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(-1, -1, 10, 0, 7); ctx.fill();
   ctx.fillStyle = C.gold;
-  ctx.fillRect(x - 10, y - 2, 20, 4);
+  ctx.fillRect(-10, -2, 20, 4);
   ctx.fillStyle = "rgba(255,255,255,0.55)";
-  ctx.fillRect(x - 6, y - 7, 4, 3);
+  ctx.fillRect(-6, -7, 4, 3);
+  ctx.restore();
 }
 
-function drawVacuumBg() {
+function drawVacuum() {
   const v = world.vac;
   if (!v || !v.started || v.done) return;
-  if (!v.toyEaten) drawBall(v.toyX);
+  if (!v.toyEaten) {
+    const c = vacuumCushion(v);
+    drawBall(c.x, c.y, c.s);
+    if (v.phase === "swallowing") {          // suction streaks sell the pull
+      const mouthX = v.x + 39 - world.cam, mouthY = 440;
+      ctx.strokeStyle = "rgba(235,237,233,0.55)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const k = 0.35 + 0.6 * ((v.phaseT * 5 + i * 0.33) % 1);
+        const sx = c.x - world.cam + (mouthX - (c.x - world.cam)) * k;
+        const sy = c.y + (mouthY - c.y) * k + (i - 1) * 7;
+        ctx.beginPath(); ctx.moveTo(Math.round(sx), Math.round(sy));
+        ctx.lineTo(Math.round(sx + 9), Math.round(sy)); ctx.stroke();
+      }
+    }
+  }
+  // idle roomba belongs to the background; the beat draws in front of the goal
+  // house and the sleeping cat, otherwise the drag is hidden behind them
   drawRoomba({ x: v.x, y: 470 - 72, w: 104, h: 72, dir: -1, spin: state.t * 7,
-               state: "patrol", dead: false, flash: 0 }, 0.6, 0.5);
+               state: v.phase === "idle" ? "patrol" : "charge",
+               dead: false, flash: 0 }, 0.6, v.phase === "idle" ? 0.5 : 0.12);
+}
+
+function drawVacuumBg() {                      // ambient pass-by, behind the level
+  const v = world.vac;
+  if (!v || !v.started || v.done || v.phase !== "idle") return;
+  drawVacuum();
+}
+
+function drawVacuumFront() {                   // the swallow beat, over decor + goal
+  const v = world.vac;
+  if (!v || !v.started || v.done || v.phase === "idle") return;
+  drawVacuum();
 }
 
 function drawPlayer() {
@@ -1768,6 +1872,10 @@ function drawPlayer() {
     const lv = chargeLevel();
     if (Math.random() < 0.35 + 0.4 * lv) jx = Math.random() < 0.5 ? -1 : 1;
     if (Math.random() < 0.25 + 0.35 * lv) jy = Math.random() < 0.5 ? -1 : 1;
+  }
+  if (p.react > 0) {                      // startled after the swallow
+    jx += Math.random() < 0.5 ? -1 : 1;
+    if (Math.random() < 0.35) jy -= 1;
   }
   const x = Math.round(p.x + p.w / 2 - world.cam) + jx;
   const y = Math.round(p.y + p.h) + jy;
@@ -1796,6 +1904,14 @@ function drawPlayer() {
 
   ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, -Math.round(f.w / 2), -f.h + (f.foot || 0), f.w, f.h);
   ctx.restore();
+
+  if (p.react > 0) {                      // the one-frame "!" above the cat
+    const ax = Math.round(p.x + p.w / 2 - world.cam) + 13;
+    const ay = Math.round(p.y - 20 - Math.min(6, (1 - p.react / 0.6) * 10));
+    ctx.globalAlpha = Math.min(1, p.react * 4);
+    text("!", ax, ay, 2, C.gold, "center");
+    ctx.globalAlpha = 1;
+  }
 
   // attack swipe
   if (p.attack > 0.06 && p.attack < 0.2) {
@@ -2157,6 +2273,7 @@ function render() {
       drawOverlayCard("ROOM CLEAR", "ENTER FOR NEXT", C.ink, `FISH ${state.coins} / ${state.totalCoins}`);
     }
     if (paused) drawPauseCard();
+    drawBlastHandoff();
     return;
   }
 
@@ -2177,6 +2294,7 @@ function render() {
   }
   drawPlatforms();
   drawGoal();
+  drawVacuumFront();
   for (const c of world.coins) if (!c.got) drawCoin(c);
   for (const e of world.enemies) drawEnemy(e);
   if (world.boss) drawBoss();
@@ -2209,6 +2327,7 @@ function render() {
 
   drawHUD();
   drawScreenFlash();
+  drawBlastHandoff();
   drawDev();
 
   if (state.mode === "clear") {
@@ -2547,6 +2666,45 @@ function drawDev() {
   text(`charge ${Math.round(state.charge)}/${state.chargeMax}  C = power`, 30, H - 38, 1, "#8CFFC1");
 }
 
+/* --------------------------------------------------------- blast handoff */
+/* Ray room -> boss room used to be a hard cut. Now the white flash is held,
+   the new room is swapped in behind it, and it fades onto the cat already
+   airborne (loadLevel's introBlast pose). The handoff owns the flash, so the
+   introBlast flash is suppressed — one flash, not two. */
+function beginBlastHandoff() {
+  if (state.handoff) return;
+  const next = state.level + 1;
+  if (next >= LEVELS.length) return;
+  state.flash = 0;                                // the overlay replaces it
+  state.handoff = { t: 0, hold: BLAST_HOLD, reveal: BLAST_REVEAL,
+                    level: next, swapped: false, done: false, alpha: 0 };
+}
+
+function updateHandoff(dt) {
+  const h = state.handoff;
+  if (!h) return;
+  h.t += dt;
+  if (!h.swapped && h.t >= h.hold) {
+    h.swapped = true;
+    state.level = h.level;
+    state.checkpoint = 0;
+    loadLevel(h.level, { introBlast: true, holdFlash: true });
+  }
+  if (!h.swapped) h.alpha = Math.min(1, h.t / 0.10);
+  else h.alpha = Math.max(0, 1 - (h.t - h.hold) / h.reveal);
+  if (h.swapped && h.alpha <= 0) { h.done = true; state.handoff = null; }
+}
+
+function drawBlastHandoff() {
+  const h = state.handoff;
+  if (!h) return;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, Math.max(0, h.alpha));
+  ctx.fillStyle = C.white;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 /* ------------------------------------------------------------------ loop */
 let last = performance.now(), acc = 0;
 const STEP = 1 / 120;
@@ -2614,7 +2772,7 @@ function boot() {
     W, H, state, player, keys, queued, sfx, ac, addCharge,
     text: (s, x, y, size, col, align) => text(s, x, y, size, col, align),
     onClear: () => { state.mode = "clear"; sfx.win(); },
-    onBlast: () => { state.level++; loadLevel(state.level, { introBlast: true }); },
+    onBlast: () => beginBlastHandoff(),
   });
   fit();
   initSandboxUI();

@@ -659,6 +659,40 @@ function jumpToStage(i) {
   syncSandbox();
 }
 
+/* DEV: park the player on the exact frame a transition starts, so the swallow
+   and the motor blast can be watched (and tuned) without playing up to them. */
+function gotoBeat(kind) {
+  if (kind === "swallow") {
+    const i = LEVELS.findIndex((L) => (L.decor || []).some((d) => d.t === "vacuum_bg"));
+    if (i < 0) return false;
+    jumpToStage(i);
+    const v = world.vac, L = LEVELS[i];
+    if (!v) return false;
+    player.x = Math.max(24, v.trigger - 190);
+    player.y = L.spawn.y;
+    player.vx = 0; player.vy = 0; player.onGround = true; player.facing = 1;
+    // this beat is about watching the swallow, not surviving the walk there
+    for (const e of world.enemies) e.alive = false;
+    player.invuln = 2.5;
+    world.cam = Math.max(0, Math.min(player.x - W * 0.36, L.width - W));
+    return true;
+  }
+  if (kind === "blast") {
+    const i = LEVELS.findIndex((L) => L.ray && L.theme === "motor");
+    if (i < 0) return false;
+    jumpToStage(i);
+    const R = RAY && RAY.state;
+    if (!R || !R.motor) return false;
+    // stand 1.2 tiles off the core, already facing it, charge loaded
+    const ang = Math.atan2(R.motor.y - R.y, R.motor.x - R.x);
+    RAY.debugTeleport(R.motor.x - Math.cos(ang) * 1.2, R.motor.y - Math.sin(ang) * 1.2,
+                      Math.cos(ang), Math.sin(ang));
+    state.charge = state.chargeMax;
+    return true;
+  }
+  return false;
+}
+
 function restartStage() {
   resetStageState();
   loadLevel(Math.min(state.level, LEVELS.length - 1));
@@ -701,8 +735,11 @@ function initSandboxUI() {
   sbOpen.addEventListener("click", () => { toggleSandboxPanel(true); sbOpen.blur(); });
   for (const b of sbEl.querySelectorAll("[data-sb]")) {
     b.addEventListener("click", () => {
-      if (b.dataset.sb === "restart") restartStage();
-      else if (b.dataset.sb === "prev") jumpToStage(Math.min(state.level, DEMO_COUNT - 1) - 1);
+      const act = b.dataset.sb;
+      if (act === "beat-swallow") gotoBeat("swallow");
+      else if (act === "beat-blast") gotoBeat("blast");
+      else if (act === "restart") restartStage();
+      else if (act === "prev") jumpToStage(Math.min(state.level, DEMO_COUNT - 1) - 1);
       else jumpToStage(Math.min(state.level, DEMO_COUNT - 1) + 1);
       b.blur();                         // Space must stay a jump, not a button press
     });
@@ -2582,7 +2619,7 @@ function boot() {
   fit();
   initSandboxUI();
   window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
-                    showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage };
+                    showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat };
   requestAnimationFrame(frame);
 }
 

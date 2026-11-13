@@ -90,6 +90,22 @@ out.mobileMotor = await mp.evaluate(() => ({ level: window.__GAME.state.level, w
 await mp.locator('[data-sb="next"]').tap();
 await mp.waitForTimeout(300);
 out.mobileBoss = await mp.evaluate(() => ({ level: window.__GAME.state.level, world: window.__GAME.world.level.name, boss: !!window.__GAME.world.boss }));
+
+// transition beats: one tap each, no walking
+await mp.locator('[data-sb="beat-swallow"]').tap();
+await mp.waitForTimeout(350);
+out.beatSwallow = await mp.evaluate(() => ({
+  world: window.__GAME.world.level.name,
+  vac: !!window.__GAME.world.vac,
+  ahead: window.__GAME.world.vac ? Math.round(window.__GAME.world.vac.trigger - window.__GAME.player.x) : null,
+}));
+await mp.locator('[data-sb="beat-blast"]').tap();
+await mp.waitForTimeout(350);
+out.beatBlast = await mp.evaluate(() => ({
+  world: window.__GAME.world.level.name,
+  motor: !!(window.__GAME.RAY && window.__GAME.RAY.state && window.__GAME.RAY.state.motor),
+  charged: window.__GAME.state.charge >= window.__GAME.state.chargeMax,
+}));
 await mp.screenshot({ path: new URL("17-sandbox-mobile.png", OUT).pathname });
 await mctx.close();
 
@@ -106,6 +122,8 @@ out.checks = {
   prodHidden: !out.prod.panel && !out.prod.openBtn,
   mobileWorks: out.mobileMotor.level === 3 && out.mobileMotor.world === "THE MOTOR"
     && out.mobileBoss.level === 4 && out.mobileBoss.boss,
+  beatSwallowWorks: out.beatSwallow.vac && out.beatSwallow.ahead > 100 && out.beatSwallow.ahead < 260,
+  beatBlastWorks: out.beatBlast.motor && out.beatBlast.charged && out.beatBlast.world === "THE MOTOR",
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

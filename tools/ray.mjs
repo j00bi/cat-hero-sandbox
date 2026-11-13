@@ -29,6 +29,14 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 760 }, dev
 watch(page, "desktop");
 
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
+
+const __build = await page.evaluate(() => window.__BUILD);
+if (__build !== "cat-hero-sandbox") {
+  console.error("[target] " + page.url() + " is not cat-hero-sandbox (build=" + __build + ")");
+  console.error("[target] a different project is serving this port - start a server in this repo and set BASE");
+  process.exit(2);
+}
+
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.waitForTimeout(300);
 

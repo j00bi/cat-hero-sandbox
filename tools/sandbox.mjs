@@ -19,6 +19,14 @@ const browser = await chromium.launch({ executablePath: CHROME });
 const page = await browser.newPage({ viewport: { width: 1200, height: 760 }, deviceScaleFactor: 1 });
 watch(page, "dev");
 await page.goto(BASE + "/?dev=1", { waitUntil: "networkidle" });
+
+const __build = await page.evaluate(() => window.__BUILD);
+if (__build !== "cat-hero-sandbox") {
+  console.error("[target] " + page.url() + " is not cat-hero-sandbox (build=" + __build + ")");
+  console.error("[target] a different project is serving this port - start a server in this repo and set BASE");
+  process.exit(2);
+}
+
 await page.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await page.waitForTimeout(400);
 

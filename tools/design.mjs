@@ -12,6 +12,14 @@ page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
 await page.goto(BASE, { waitUntil: "networkidle" });
+
+const __build = await page.evaluate(() => window.__BUILD);
+if (__build !== "cat-hero-sandbox") {
+  console.error("[target] " + page.url() + " is not cat-hero-sandbox (build=" + __build + ")");
+  console.error("[target] a different project is serving this port - start a server in this repo and set BASE");
+  process.exit(2);
+}
+
 await page.waitForFunction(() => window.__GAME);
 
 const checks = {};

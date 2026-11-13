@@ -449,8 +449,11 @@
         const idx = charging ? Math.min(set.length - 1, Math.floor(q * set.length)) : ((R.t * 6 | 0) % set.length);
         const f = set[idx];
         c.imageSmoothingEnabled = false;
+        // 84px filled 40% of the frame, so the paws read as glued to the lens.
+        // Smaller + lower leaves floor in front of the cat and air above them.
+        const PAW = 68, PAW_Y = RH - 56;
         c.drawImage(pawsImg, f.x, f.y, f.w, f.h,
-          Math.round((RW - 84) / 2) + jit, Math.round(RH - 72 + bob), 84, 84);
+          Math.round((RW - PAW) / 2) + jit, Math.round(PAW_Y + bob), PAW, PAW);
       } else {
         P.forEach((p, i) => {
           c.fillStyle = AP.ink; ell(c, p.x, p.y + 14, 25, 26);                         // black forearm

@@ -219,7 +219,7 @@ addEventListener("keydown", (e) => {
     if (state.mode === "play") e.preventDefault();   // Shift+arrows must not select text
     if (!e.repeat) startCharge();
   }
-  if (DEV && e.code === "KeyV") { state.powerId = (state.powerId + 1) % POWERS.length; beep(520, 0.06, "square", 0.07); }
+  if (DEV && e.code === "KeyV") { beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
   if (e.code === "KeyP" || e.code === "Escape") { if (state.mode === "play") paused = !paused; }
   if (DEV) {
@@ -238,8 +238,6 @@ addEventListener("keydown", (e) => {
     if (e.code === "KeyR") restartStage();
     if (e.code === "KeyF") state.charge = state.chargeMax;
     if (e.code === "Digit1") state.powerId = 0;
-    if (e.code === "Digit2") state.powerId = 1;
-    if (e.code === "Digit3") state.powerId = 2;
   }
   if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     if (state.mode === "select" && !e.repeat) {
@@ -637,7 +635,7 @@ function loadLevel(i, opts = {}) {
   world.got = 0;
   state.totalCoins = L.coins.length;
   state.coins = 0;
-  state.powerId = L.power ?? 0;
+  state.powerId = 0;
   state.idleT = 0;
   const vd = (L.decor || []).find((d) => d.t === "vacuum_bg");
   world.vac = vd ? { trigger: vd.x, toyX: vd.x + 220, toyEaten: false,
@@ -1072,10 +1070,10 @@ function addCharge(n) {
   }
 }
 
+/* One power. The other two were never chosen in play — they were picked by the
+   level you happened to be on — so they were noise in the HUD and in the jam build. */
 const POWERS = [
   { name: "THUNDER POUNCE", tint: "#73BED3" },
-  { name: "FROST NOVA", tint: "#A4DDDB" },
-  { name: "EMBER BURST", tint: "#DE9E41" },
 ];
 
 function castThunder() {
@@ -1090,42 +1088,11 @@ function castThunder() {
   sfx.thunder();
 }
 
-function castFrost() {
-  const p = player;
-  for (const e of world.enemies) if (e.alive) e.frozen = 3.0;
-  state.shake = 5;
-  state.emberVfx = 0.35;      // ring flash
-  state.ringColor = C.bossEye;
-  burst(p.x + p.w / 2, p.y + p.h / 2, 26, C.bossEye);
-}
-
-function castEmber() {
-  const p = player;
-  const cx = p.x + p.w / 2, cy = p.y + p.h / 2, r = 230;
-  for (const e of world.enemies) {
-    if (!e.alive) continue;
-    if (Math.hypot(e.x + e.w / 2 - cx, e.y + e.h / 2 - cy) < r) killEnemy(e, 0);
-  }
-  if (world.boss && !world.boss.dead && world.boss.state === "stun" && world.boss.invuln <= 0) {
-    world.boss.hp--; world.boss.flash = 0.45; world.boss.invuln = 0.7;
-    world.boss.state = "hurt"; world.boss.t = 0; world.boss.vx = 0;
-    if (world.boss.hp <= 0) killBoss();
-  }
-  state.shake = 9;
-  state.emberVfx = 0.4;
-  state.ringColor = C.goldWarm;
-  burst(cx, cy, 34, C.goldWarm);
-  burst(cx, cy, 18, C.red);
-}
-
 function tryPower() {
   const p = player;
   if (state.charge < state.chargeMax || p.power > 0 || p.dead) return false;
   state.charge = 0;
-  const id = state.powerId;
-  if (id === 0) castThunder();
-  else if (id === 1) castFrost();
-  else castEmber();
+  castThunder();
   p.invuln = Math.max(p.invuln, 0.4);
   return true;
 }

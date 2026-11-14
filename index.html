@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>CAT HERO — a very small adventure</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f0e6c8'/%3E%3Crect x='3' y='6' width='10' height='7' fill='%231b1410'/%3E%3Crect x='4' y='3' width='3' height='4' fill='%231b1410'/%3E%3Crect x='9' y='3' width='3' height='4' fill='%231b1410'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=f431321">
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="touch" aria-hidden="true">
+      <div class="pad left">
+        <button data-k="left" aria-label="left">&#9664;</button>
+        <button data-k="right" aria-label="right">&#9654;</button>
+      </div>
+      <div class="pad right">
+        <button data-k="charge" class="chg" aria-label="charge">&#9889;</button>
+        <button data-k="bat" class="bat" aria-label="bat">PAW</button>
+        <button data-k="jump" aria-label="jump">JUMP</button>
+      </div>
+    </div>
+    <div id="hint">&#8592; &#8594; move &nbsp;·&nbsp; SPACE jump &nbsp;·&nbsp; J paw &nbsp;·&nbsp; hold SHIFT = power &nbsp;·&nbsp; M mute</div>
+  </div>
+  <div id="sandbox" hidden>
+    <div class="sb-head"><span>SANDBOX</span><button id="sb-close" aria-label="hide sandbox panel">&times;</button></div>
+    <div id="sb-now">DEV</div>
+    <div id="sb-stages" class="sb-stages"></div>
+    <div class="sb-row">
+      <button data-sb="prev" aria-label="previous stage">&#9664; PREV</button>
+      <button data-sb="next" aria-label="next stage">NEXT &#9654;</button>
+      <button data-sb="restart" aria-label="restart stage">RESTART</button>
+    </div>
+    <div class="sb-row sb-beats">
+      <button data-sb="beat-swallow" aria-label="jump to the vacuum swallow">SWALLOW</button>
+      <button data-sb="beat-blast" aria-label="jump to the motor blast">BLAST</button>
+    </div>
+    <div class="sb-note">` hides panel &middot; L next &middot; R restart</div>
+  </div>
+  <button id="sb-open" hidden>DEV</button>
+  <script src="ray.js?v=f431321"></script>
+  <script>window.__BUILD="cat-hero-sandbox";</script>
+  <script src="game.js?v=f431321"></script>
+</body>
+</html>

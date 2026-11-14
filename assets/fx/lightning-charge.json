@@ -1,0 +1,11 @@
+{
+ "image": "assets/fx/lightning-charge.png",
+ "frames": 82,
+ "fps": 30,
+ "frame": [
+  225,
+  157
+ ],
+ "burstStart": 48,
+ "source": "pixelfx lightning/charge-up (MIT, Hugo Duprez / Sprite Fusion)"
+}

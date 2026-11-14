@@ -108,22 +108,48 @@ came out 65 px against 74 px the first time and had to be rebuilt).
 
 ## 3. Ingest a strip
 
+The cutter takes either source: the raw Gemini strip (magenta background) or an
+already-cut 2x preview sheet (paper background). It reads the border colour and keys
+accordingly, so there is one code path for both.
+
 ```bash
-python3 tools/strip_atlas.py --strip walk=out/gemini/walk-strip.png \
-                             --strip run=out/gemini/run-strip.png \
+# raw strip - exact frame count required
+python3 tools/strip_atlas.py --strip walk=out/gemini/walk-strip.jpg --expect 8 \
                              --base out/autosprite/base-assets
+
+# already-cut preview sheet, analysis only (assets/ is never touched)
+python3 tools/strip_atlas.py --strip run=out/gemini/run-strip.png --expect 6 \
+                             --dry-run --base out/autosprite/base-assets
 ```
 
-What it does: segments the strip by background-free columns, registers every frame to
-one shared baseline, scales each to fit 92×84 inside the 96 px cell, snaps every pixel
-to the Apollo palette, appends the row to a clean copy of the atlas, and derives the
-grey skin from the black one.
+It segments by background-free columns, registers every frame to one shared baseline,
+scales each to fit 92x84 inside the 96 px cell, snaps every pixel to Apollo, appends the
+row to a clean copy of the atlas, and derives the grey skin from the black one.
+
+Trust checks, because a Gemini strip is not as clean as an AutoSprite export. Each one
+exits **2** and writes no atlas:
+
+| check | rejects |
+|---|---|
+| `--expect N` | wrong frame count — Gemini added or dropped a pose |
+| `--min-coverage 0.55` | a frame with under 55 % of the row median pixels — ghost or half-erased |
+| `--min-density 0.70` | a frame under 70 % of the median bbox density — streaks or blur widening it |
+| palette | any opaque pixel that is not Apollo after the snap |
+| baseline | frames that do not land on the same measured foot row |
+
+stdout is one JSON line per accepted frame (`bbox`, `height`, `baseline`, `scaled`,
+`coverage_ratio`, `density_ratio`, ...); human notes go to stderr. It writes
+`<anim>-contact.png` next to the atlas: every frame on the 96 px grid, labelled with
+index, height, foot row and coverage. `--dry-run` writes the contact sheet only, and
+writing into `assets/` additionally needs `--install`.
 
 Then:
 
 1. Bump `ART_V` in `game.js` (currently `gemini2`) — browsers cache the atlas by it.
-2. Eyeball `out/*/contact.png` or the app itself. Numbers cannot see a swapped tail.
-3. Run the suites: `BASE=http://127.0.0.1:8124 node tools/<suite>.mjs` for all 14.
+2. Eyeball the `<anim>-contact.png` or the app itself. Numbers cannot see a swapped tail.
+3. Run the suites: `BASE=http://127.0.0.1:8124 node tools/<suite>.mjs` for all 15,
+   including `tools/strip.mjs` (rebuilds the atlas in a temp dir, checks frame count,
+   shared foot row, Apollo-only palette and empty cells, then proves the negative cases).
 
 `tools/atlas_patch.py` is the other half: it normalises an existing cell (baseline,
 foot, scale) without regenerating art — that is how the charge pose was fixed to

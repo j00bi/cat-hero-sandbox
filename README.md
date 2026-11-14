@@ -125,6 +125,7 @@ node tools/story.mjs       # opening cards -> 5-stage flow -> ending card -> win
 node tools/phase11.mjs     # Shift guard, blur cancel, failed-release fizzle
 node tools/sandbox.mjs     # dev stage-skip panel (jump/next/restart, phone, prod hidden)
 node tools/transitions.mjs # vacuum swallow + motor blast handoff beats
+node tools/strip.mjs       # sprite-strip ingestion: count, baseline, palette, rejects
 ```
 
 - `test.mjs` — boots the game, plays it with real key events: menu → hero select → room,

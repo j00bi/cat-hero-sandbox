@@ -72,6 +72,7 @@ node tools/test.mjs        # 14 gameplay assertions
 node tools/phase11.mjs     # Shift guard, blur cancel, fizzle
 node tools/sandbox.mjs     # stage-skip panel: jump, next, restart, phone, prod hidden
 node tools/transitions.mjs # vacuum swallow beat + motor blast handoff
+node tools/strip.mjs       # art ingestion: frame count, foot line, Apollo, rejects
 node tools/reach.mjs       # every platform still reachable
 node tools/playthrough.mjs # autopilot clears the 2D stages
 node tools/ray.mjs         # Dust Bin + Motor first-person rooms

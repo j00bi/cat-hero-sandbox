@@ -32,6 +32,7 @@ const start = (i = 0) => page.evaluate((i) => {
 
 // 1. opens and paints
 out.before = await start(0);
+await page.evaluate(() => { window.__GAME.state.charge = 60; });
 await page.keyboard.down("Tab");
 await page.waitForTimeout(450);
 out.opened = await page.evaluate(() => window.__GAME.mapView.on);
@@ -53,6 +54,11 @@ await page.waitForTimeout(700);
 await page.keyboard.up("ArrowRight");
 const x1 = await page.evaluate(() => Math.round(window.__GAME.player.x));
 out.frozen = { x0, x1 };
+
+// 2b. peeking burns the meter
+out.drain = await page.evaluate(() => ({ charge: window.__GAME.state.charge }));
+await page.waitForTimeout(600);
+out.drained = await page.evaluate(() => ({ charge: window.__GAME.state.charge }));
 
 // 3. releases cleanly
 await page.keyboard.up("Tab");
@@ -79,6 +85,7 @@ out.checks = {
   releasesCleanly: out.closed === false,
   movementResumes: out.resumed - out.frozen.x1 > 60,
   staysOutOfRayRooms: out.rayRefused.on === false && out.rayRefused.ray === true,
+  peekingCostsMeter: out.drained.charge < out.drain.charge,
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

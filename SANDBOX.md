@@ -12,6 +12,19 @@ panel and the beats; the stable build is a separate repo and never matches that 
 the same `index.html` locally (`npm`-free, any static server) still needs `?dev=1` for the dev
 layer, which is what the suites check.
 
+## SHIFT — body and sensor
+
+| Input | Does |
+|---|---|
+| tap **SHIFT** | cycle the body: half → normal → double → half. Costs 25 of the meter. |
+| hold **SHIFT** | charge the THUNDER POUNCE as before. A full meter always casts, never shifts. |
+| hold **TAB** | SENSOR — the room schematic. The cat cannot act while it is up, and the meter drains 16/s. |
+| **Q** / **E** | dev shortcut: straight to half / straight to double. |
+
+**Dust barriers** (the pale speckled walls) are 170 px tall, so no jump clears them.
+Only a **double-size pounce** breaks one. Half size crawls through 40 px gaps the other
+bodies cannot enter.
+
 ## Dev tools (`?dev=1`)
 
 The panel sits bottom-left and lists its own keys.

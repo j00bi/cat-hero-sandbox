@@ -82,6 +82,41 @@ out.respawn = await page.evaluate((idx) => {
   return { size: G.player.size, w: G.player.w, h: G.player.h };
 }, idx);
 
+// 6. tap SHIFT cycles the body; a full meter still casts instead
+out.tap = await page.evaluate(() => {
+  const G = window.__GAME;
+  const i = G.LEVELS.findIndex((L) => L.sandbox);
+  G.loadLevel(i); G.state.charge = 60; G.setSize("normal");
+  return { size: G.player.size, charge: G.state.charge };
+});
+await page.keyboard.down("Shift");
+await page.waitForTimeout(60);
+await page.keyboard.up("Shift");
+await page.waitForTimeout(200);
+out.tapped = await page.evaluate(() => ({ size: window.__GAME.player.size, charge: window.__GAME.state.charge }));
+
+// 7. dust barrier: only a double-size pounce breaks it
+const barrier = async (size) => {
+  await page.evaluate(({ size }) => {
+    const G = window.__GAME;
+    const i = G.LEVELS.findIndex((L) => L.sandbox);
+    G.loadLevel(i); G.state.charge = 100; G.setSize(size);
+    const pl = G.player;
+    pl.x = 1560; pl.y = 470 - pl.h; pl.vx = 0; pl.vy = 0; pl.facing = 1;
+    G.state.charge = G.state.chargeMax;
+  }, { size });
+  await page.keyboard.down("Shift");
+  await page.waitForTimeout(250);
+  await page.keyboard.up("Shift");
+  await page.waitForTimeout(700);
+  return page.evaluate(() => ({
+    broken: window.__GAME.world.level.solids.filter((s) => s.broken).length,
+    x: Math.round(window.__GAME.player.x),
+  }));
+};
+out.barrierBig = await barrier("big");
+out.barrierNormal = await barrier("normal");
+
 out.checks = {
   threeBodies: out.small.w === 17 && out.small.h === 21
     && out.normal.w === 34 && out.normal.h === 42
@@ -92,6 +127,9 @@ out.checks = {
   tunnelBlocksNormal: out.tunnel.normal < 880 && out.tunnel.big < 880,
   tunnelAdmitsSmall: out.tunnel.small > 1100,
   respawnResets: out.respawn.size === "normal" && out.respawn.w === 34 && out.respawn.h === 42,
+  tapShiftCycles: out.tap.size === "normal" && out.tapped.size === "big",
+  bigBreaksDust: out.barrierBig.broken === 1 && out.barrierBig.x > 1700,
+  normalBouncesOffDust: out.barrierNormal.broken === 0 && out.barrierNormal.x < 1620,
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

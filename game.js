@@ -235,7 +235,7 @@ addEventListener("keydown", (e) => {
   if (e.code === "Enter" || e.code === "Space") { if (!keys.confirm) { keys.confirm = true; queued.confirm = true; } }
   if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") {
     if (state.mode === "play") e.preventDefault();   // Shift+arrows must not select text
-    if (!e.repeat) startCharge();
+    if (!e.repeat) beginShiftKey();
   }
   if (DEV && e.code === "KeyV") { beep(520, 0.06, "square", 0.07); }
   if (e.code === "KeyM") toggleMute();
@@ -271,14 +271,14 @@ addEventListener("keyup", (e) => {
   if (e.code === "Tab") { e.preventDefault(); setMap(false); return; }
   const k = MAP[e.code]; if (k) keys[k] = false;
   if (e.code === "Enter" || e.code === "Space") keys.confirm = false;
-  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") releaseCharge();
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") endShiftKey();
 });
 
 /* Losing focus mid-charge must cancel it without casting — otherwise the cat
    casts when the player tabs back in, or is stuck crouched forever. */
 addEventListener("blur", () => {
   for (const k in keys) keys[k] = false;
-  player.charging = false;
+  player.charging = false; shiftHeld = false;
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) player.charging = false;
@@ -582,6 +582,9 @@ const LEVELS_ALL = [
       rect(880, 0, 220, 430),
       // and a shelf the normal cat can jump onto but the half cat cannot reach
       rect(1320, 356, 200, 24),
+      // DUST BARRIER — 170 px tall, so no jump clears it. Double up and pounce.
+      Object.assign(rect(1620, 300, 40, 170), { brk: true }),
+      Object.assign(rect(2100, 300, 40, 170), { brk: true }),
     ],
     coins: [],
     enemies: [],
@@ -668,6 +671,7 @@ function loadLevel(i, opts = {}) {
   player.size = "normal"; player.sc = 1; player.shiftT = 0;
   player.w = 34; player.h = 42;
   state.idleT = 0;
+  for (const q of L.solids) q.broken = false;   // dust barriers come back on reload
   const vd = (L.decor || []).find((d) => d.t === "vacuum_bg");
   world.vac = vd ? { trigger: vd.x, toyX: vd.x + 220, toyEaten: false,
                      started: false, phase: "idle", phaseT: 0, done: false, t: 0, x: 0 } : null;
@@ -802,7 +806,7 @@ function overlaps(a, b) {
 }
 
 function solidHit(box) {
-  for (const s of world.level.solids) if (overlaps(box, s)) return s;
+  for (const s of world.level.solids) if (!s.broken && overlaps(box, s)) return s;
   for (const q of world.plats) if (overlaps(box, q)) return q;
   return null;
 }
@@ -837,6 +841,13 @@ function movePlayer(dt) {
 }
 
 /* ------------------------------------------------------------- shifting */
+/* SHIFT cycles half -> normal -> double -> half. One key, one thumb. */
+function cycleSize() {
+  const order = ["small", "normal", "big"];
+  const i = order.indexOf(player.size);
+  return setSize(order[(i + 1) % order.length]);
+}
+
 function shiftSize(dir) {
   const i = SZ_ORDER.indexOf(player.size);
   const next = SZ_ORDER[Math.max(0, Math.min(SZ_ORDER.length - 1, i + dir))];
@@ -922,6 +933,7 @@ function update(dt) {
   if (mapView.on) {                 // looking is not acting
     keys.left = keys.right = keys.jump = keys.bat = false;
     queued.jump = false; queued.bat = false;
+    state.charge = Math.max(0, state.charge - 16 * dt);   // peeking burns the meter
   }
   state.t += dt;
   if (state.hitstop > 0) { state.hitstop -= dt; updateParticles(dt); return; }
@@ -1131,6 +1143,26 @@ function startCharge() {
   player.charging = true;
 }
 
+/* SHIFT is both buttons. A flick shifts the body, a hold charges the pounce.
+   Tracked here rather than on player.charging, because the crouch is cancelled
+   the moment the cat is moving - a tap while running must still count. */
+let shiftHeld = false, shiftAt = 0, shiftCharge0 = 0;
+
+function beginShiftKey() {
+  shiftHeld = true; shiftAt = state.t; shiftCharge0 = state.charge;
+  startCharge();
+}
+
+function endShiftKey() {
+  if (!shiftHeld) return;
+  shiftHeld = false;
+  const tapped = (state.t - shiftAt) < 0.18
+    && state.charge < state.chargeMax
+    && state.charge - shiftCharge0 < 12;
+  if (tapped) { player.charging = false; cycleSize(); return; }
+  releaseCharge();
+}
+
 function releaseCharge() {
   if (!player.charging) return;
   player.charging = false;
@@ -1198,6 +1230,17 @@ function updatePower(dt) {
   for (const e of world.enemies) {
     if (e.alive && overlaps(hb, rect(e.x, e.y, e.w, e.h))) { killEnemy(e, p.facing * 260); p.powerHits++; }
   }
+  // a double-size pounce goes through a dust barrier; anything smaller bounces off it
+  if (p.size === "big") {
+    for (const sd of world.level.solids) {
+      if (!sd.brk || sd.broken || !overlaps(hb, sd)) continue;
+      sd.broken = true;
+      state.shake = 10; state.hitstop = 0.04;
+      sfx.land && sfx.land();
+      burst(sd.x + sd.w / 2, sd.y + sd.h / 2, 26, C.mist);
+    }
+  }
+
   if (world.boss && !world.boss.dead && overlaps(hb, rect(world.boss.x, world.boss.y, world.boss.w, world.boss.h))) {
     if (world.boss.state === "stun" && world.boss.invuln <= 0) {
       world.boss.hp--; world.boss.flash = 0.45; world.boss.invuln = 0.7;
@@ -1565,8 +1608,23 @@ function drawDecor() {
 function drawSolids() {
   const cam = world.cam;
   for (const s of world.level.solids) {
+    if (s.broken) continue;
     if (s.x + s.w < cam - 40 || s.x > cam + W + 40) continue;
     const x = Math.round(s.x - cam), y = Math.round(s.y);
+    if (s.brk) {                       // dust barrier: reads as loose, not solid
+      ctx.fillStyle = C.mist;
+      ctx.fillRect(x, y, s.w, s.h);
+      ctx.fillStyle = C.paperEdge;
+      for (let py = 6; py < s.h; py += 14) {
+        for (let px = 4; px < s.w - 4; px += 11) {
+          if ((px * 3 + py * 7) % 5 < 3) ctx.fillRect(x + px, y + py, 5, 3);
+        }
+      }
+      ctx.fillStyle = C.ink;
+      ctx.fillRect(x, y, 2, s.h);
+      ctx.fillRect(x + s.w - 2, y, 2, s.h);
+      continue;
+    }
     const big = s.h > 40;
 
     // dirt body
@@ -2962,7 +3020,7 @@ function boot() {
   initSandboxUI();
   window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
                     showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat,
-                    shiftSize, setSize, SZ, SHIFT_COST, hurt, setMap, mapView };
+                    shiftSize, setSize, cycleSize, SZ, SHIFT_COST, hurt, setMap, mapView };
   requestAnimationFrame(frame);
 }
 

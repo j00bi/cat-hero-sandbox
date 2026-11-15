@@ -584,6 +584,29 @@ const LEVELS_ALL = [
     decor: [],
   },
   {
+    world: "2-1A", name: "GRATE & PIPE",
+    power: 0,
+    width: 1450,
+    spawn: { x: 80, y: 428 },
+    ladder: true,
+    solids: [
+      rect(0, 470, 340, 70),                                  // safe entry + recharge
+      Object.assign(rect(340, 470, 200, 16), { grate: true }), // 200 px grate, half falls in
+      rect(540, 470, 910, 70),                                // landing lip + tunnel floor + goal deck
+      rect(680, 300, 220, 130),                               // crawl: 40 px headroom
+      rect(1040, 374, 140, 24),                               // 96 px shelf, bonus coins
+    ],
+    coins: [
+      { x: 400, y: 438 }, { x: 440, y: 438 }, { x: 480, y: 438 },
+      { x: 750, y: 452 }, { x: 830, y: 452 },
+      { x: 1090, y: 342 }, { x: 1130, y: 342 },
+    ],
+    secrets: [{ x: 790, y: 450 }],                            // only under SENSOR
+    enemies: [{ x: 1050, min: 1000, max: 1280 }],             // clear of the crawl mouth at 900
+    goal: { x: 1360, y: 470 },
+    decor: [{ t: "sign", x: 60 }],
+  },
+  {
     world: "DEV", name: "SANDBOX",
     power: 0,
     width: 2560,
@@ -613,6 +636,7 @@ const LEVELS_EXTRA = LEVELS_ALL.filter((L) => ["1-2", "1-3", "1-4", "1-6"].inclu
 
 const LEVELS = [
   LEVELS_ALL.find((L) => L.world === "2-1"),
+  LEVELS_ALL.find((L) => L.world === "2-1A"),
   // THE CLIMB is the Old Mill room: two of its three platforms are vertical
   // lifts, so the route is an actual climb, with one horizontal traverse in
   // the middle to break the rhythm.
@@ -630,7 +654,7 @@ const LEVELS = [
   LEVELS_ALL.find((L) => L.world === "2-5"),
   LEVELS_ALL.find((L) => L.sandbox),
 ];
-const DEMO_COUNT = 5;
+const DEMO_COUNT = 6;
 
 /* ---------------------------------------------------------------- player */
 const player = {

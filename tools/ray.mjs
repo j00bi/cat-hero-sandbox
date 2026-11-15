@@ -60,6 +60,10 @@ const snapshot = () => page.evaluate(() => {
 });
 
 const out = { base: BASE };
+out.idx = await page.evaluate(() => {
+  const f = (w) => window.__GAME.LEVELS.findIndex((L) => L.world === w);
+  return { dust: f("2-3"), motor: f("2-4"), boss: f("2-5") };
+});
 const integration = await page.waitForFunction(
   () => window.__GAME && window.__GAME.RAY && typeof window.__GAME.releaseCharge === "function",
   null, { timeout: 8000 },
@@ -84,7 +88,7 @@ const load = (target) => page.evaluate((lv) => {
 }, target);
 
 /* 1. DUST BIN starts on the S tile, in play mode, with no page errors. */
-await load(2);
+await load(await page.evaluate(() => window.__GAME.LEVELS.findIndex((L) => L.world === "2-3")));
 await page.waitForTimeout(450);
 out.dustStart = await snapshot();
 out.artLoaded = await page.waitForFunction(() => {
@@ -111,7 +115,7 @@ out.afterDoor = await snapshot();
 
 /* 3. Charging in the dust bin still routes through the shared charge meter;
       screenshot mid-charge so the light circle and arcs are visible. */
-await load(2);
+await load(await page.evaluate(() => window.__GAME.LEVELS.findIndex((L) => L.world === "2-3")));
 await page.waitForTimeout(400);
 await page.keyboard.down("ShiftLeft");
 await page.waitForTimeout(1150);
@@ -121,7 +125,7 @@ await page.keyboard.up("ShiftLeft");
 await page.waitForTimeout(150);
 
 /* 4. Frame rate over ~2 s while charging (headless is coarse; report the number). */
-await load(2);
+await load(await page.evaluate(() => window.__GAME.LEVELS.findIndex((L) => L.world === "2-3")));
 await page.waitForTimeout(400);
 await page.keyboard.down("ShiftLeft");
 out.fps = await page.evaluate(() => new Promise((resolve) => {
@@ -138,7 +142,7 @@ await page.keyboard.up("ShiftLeft");
 
 /* 5. THE MOTOR: stand ~1.2 tiles in front of the core facing it, fill the meter,
       release -> blast -> game.js loads stage 4 (the boss). */
-await load(3);
+await load(await page.evaluate(() => window.__GAME.LEVELS.findIndex((L) => L.world === "2-4")));
 await page.waitForTimeout(450);
 out.motorStart = await snapshot();
 await page.evaluate(() => { window.__GAME.RAY.debugTeleport(3.5, 4.7, 0, -1); });
@@ -153,7 +157,7 @@ out.motorReleaseApi = await page.evaluate(() => {
   return true;
 });
 out.blast = await page.waitForFunction(
-  () => window.__GAME.state.level === 4 && !!window.__GAME.world.boss,
+  () => window.__GAME.world.boss && !!window.__GAME.world.boss,
   null, { timeout: 5000 },
 ).then(() => true).catch(() => false);
 out.afterBlast = await snapshot();
@@ -165,7 +169,7 @@ watch(mp, "mobile");
 await mp.goto(BASE + "/", { waitUntil: "networkidle" });
 await mp.waitForFunction(() => window.__GAME && window.__GAME.RAY, null, { timeout: 10000 });
 await mp.waitForTimeout(300);
-await mp.evaluate(() => { window.__GAME.state.level = 2; window.__GAME.loadLevel(2); });
+await mp.evaluate(() => { const i = window.__GAME.LEVELS.findIndex((L) => L.world === "2-3"); window.__GAME.state.level = i; window.__GAME.loadLevel(i); });
 await mp.waitForTimeout(400);
 out.mobileStart = await mp.evaluate(() => {
   const G = window.__GAME;
@@ -185,7 +189,7 @@ const near = (a, b, tol) => Math.abs(a - b) <= tol;
 out.checks = {
   integration: out.integration && out.dustStart.releaseCharge,
   dustStartS: out.dustStart.mode === "play" && out.dustStart.ray
-    && out.dustStart.level === 2 && out.dustStart.world === "DUST BIN"
+    && out.dustStart.level === out.idx.dust && out.dustStart.world === "DUST BIN"
     && near(out.dustStart.x, 1.5, 0.35) && near(out.dustStart.y, 1.5, 0.35),
   doorOpens: out.atDoor.doorOpen === true,
   doorClears: out.doorCleared && out.afterDoor.mode === "clear",
@@ -196,8 +200,8 @@ out.checks = {
   chargeScreenshot: fs.existsSync(new URL("15-ray-dustbin.png", OUT)),
   fps50: out.fps >= 50,
   motorRoom: out.motorStart.mode === "play" && out.motorStart.ray
-    && out.motorStart.level === 3 && out.motorStart.world === "THE MOTOR",
-  blastAdvances: out.blast && out.afterBlast.level === 4 && out.afterBlast.boss,
+    && out.motorStart.level === out.idx.motor && out.motorStart.world === "THE MOTOR",
+  blastAdvances: out.blast && out.afterBlast.level === out.idx.boss && out.afterBlast.boss,
   mobileMoves: out.mobileStart.mode === "play" && out.mobileMoved > 0.3,
   noErrors: errors.length === 0,
 };

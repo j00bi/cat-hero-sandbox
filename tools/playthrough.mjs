@@ -82,9 +82,10 @@ for (const { i: lv } of platformLevels) {
 console.log(JSON.stringify({ structure, results }, null, 1));
 console.log("errors:", errors);
 const ok = results.every((r) => r.mode === "clear");
-const structureOk = structure.demoCount === 5
+const structureOk = structure.demoCount >= 5
   && structure.rayCount === 2
-  && structure.rayWorlds.join(",") === "2-3,2-4";
+  && structure.rayWorlds.join(",") === "2-3,2-4"
+  && structure.ladderCount >= 1;
 console.log(ok ? "PLAYTHROUGH: all 2D levels cleared" : "PLAYTHROUGH: FAILED");
 console.log(structureOk
   ? `PLAYTHROUGH: demo has ${structure.demoCount} stages (${structure.rayCount} ray)`

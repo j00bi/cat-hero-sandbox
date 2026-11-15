@@ -110,9 +110,10 @@ out.reloadCancel = await page.evaluate(() => {
 });
 
 /* --------------------------------------------------------------- 2. blast */
+out.motorIdx = await page.evaluate(() => window.__GAME.LEVELS.findIndex((L) => L.world === "2-4"));
 await page.evaluate(() => {
   const G = window.__GAME;
-  G.jumpToStage(3);                     // THE MOTOR
+  G.jumpToStage(G.LEVELS.findIndex((L) => L.world === "2-4"));   // THE MOTOR
   G.state.charge = G.state.chargeMax;
   G.player.charging = true;
 });
@@ -194,16 +195,17 @@ out.checks = {
   reloadCancels: out.reloadCancel.phase === "idle" && out.reloadCancel.started === false
     && !out.reloadCancel.toyEaten,
   blastStarts: out.blast.sawBlast && out.blast.sawHandoff,
-  holdsWhiteBeforeSwap: out.blast.swapLevelAtHold === 3 && out.blast.maxAlpha >= 0.99,
-  swapsOnceToBoss: JSON.stringify(out.blast.levels) === JSON.stringify([3, 4])
-    && out.blast.sawSwap && out.blast.sawSwap.level === 4
+  holdsWhiteBeforeSwap: out.blast.swapLevelAtHold === out.motorIdx && out.blast.maxAlpha >= 0.99,
+  swapsOnceToBoss: JSON.stringify(out.blast.levels) === JSON.stringify([out.motorIdx, out.motorIdx + 1])
+    && out.blast.sawSwap && out.blast.sawSwap.level === out.motorIdx + 1
     && out.blast.sawSwap.world === "2-5" && out.blast.sawSwap.boss,
   introBlastPose: out.blast.sawSwap && out.blast.sawSwap.airborne
     && out.blast.sawSwap.bossState === "stun" && out.blast.sawSwap.bossStun === 3,
   noDoubleFlash: out.blast.sawSwap && out.blast.sawSwap.flash === 0
     && out.blast.sawSwap.alpha >= 0.99 && out.blast.swapFlash === 0,
   handoffEnds: out.blast.finished && !out.blast.pendingHandoff
-    && out.blast.levelAfter === 4 && out.blastAfter.boss && out.blastAfter.level === 4,
+    && out.blast.levelAfter === out.motorIdx + 1 && out.blastAfter.boss
+    && out.blastAfter.level === out.motorIdx + 1,
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

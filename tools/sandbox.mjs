@@ -41,10 +41,13 @@ const state = () => page.evaluate(() => {
            label: document.getElementById("sb-now").textContent };
 });
 const out = { boot: await state() };
+// indices move whenever a room is inserted, so never hardcode one
+const idx = await page.evaluate(() => Object.fromEntries(
+  window.__GAME.LEVELS.map((L, i) => [L.world, i])));
 const click = (sel) => page.locator(sel).click();
 const settle = () => page.waitForTimeout(300);
 
-await click('#sb-stages button[data-stage="2"]'); await settle();
+await click(`#sb-stages button[data-stage="${idx["2-3"]}"]`); await settle();
 out.dust = await state();
 out.focusAfterClick = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
 await page.screenshot({ path: new URL("16-sandbox-panel.png", OUT).pathname });
@@ -54,7 +57,7 @@ await click('[data-sb="next"]'); await settle();
 out.boss = await state();
 await click('[data-sb="restart"]'); await settle();
 out.restart = await state();
-await click('#sb-stages button[data-stage="0"]'); await settle();
+await click(`#sb-stages button[data-stage="${idx["2-1"]}"]`); await settle();
 out.backyard = await state();
 
 // hide via the close button, reopen via the DEV pill, then toggle with backquote
@@ -84,7 +87,9 @@ watch(mp, "mobile");
 await mp.goto(BASE + "/?dev=1", { waitUntil: "networkidle" });
 await mp.waitForFunction(() => window.__GAME, null, { timeout: 10000 });
 await mp.waitForTimeout(400);
-await mp.locator('#sb-stages button[data-stage="3"]').tap();
+const midx = await mp.evaluate(() => Object.fromEntries(
+  window.__GAME.LEVELS.map((L, i) => [L.world, i])));
+await mp.locator(`#sb-stages button[data-stage="${midx["2-4"]}"]`).tap();
 await mp.waitForTimeout(300);
 out.mobileMotor = await mp.evaluate(() => ({ level: window.__GAME.state.level, world: window.__GAME.world.level.name }));
 await mp.locator('[data-sb="next"]').tap();
@@ -113,16 +118,16 @@ await mctx.close();
 out.checks = {
   panelVisibleInDev: out.boot.panel && !out.boot.openBtn,
   buttonsReleaseFocus: out.focusAfterClick !== "BUTTON",
-  jumpsToDust: out.dust.level === 2 && out.dust.world === "DUST BIN" && out.dust.mode === "play" && out.dust.ray,
-  nextToMotor: out.motor.level === 3 && out.motor.world === "THE MOTOR" && out.motor.ray,
-  nextToBoss: out.boss.level === 4 && out.boss.world === "THE DEN" && out.boss.boss && !out.boss.ray,
-  restartKeepsBoss: out.restart.level === 4 && out.restart.mode === "play" && out.restart.boss,
+  jumpsToDust: out.dust.level === idx["2-3"] && out.dust.world === "DUST BIN" && out.dust.mode === "play" && out.dust.ray,
+  nextToMotor: out.motor.level === idx["2-4"] && out.motor.world === "THE MOTOR" && out.motor.ray,
+  nextToBoss: out.boss.level === idx["2-5"] && out.boss.world === "THE DEN" && out.boss.boss && !out.boss.ray,
+  restartKeepsBoss: out.restart.level === idx["2-5"] && out.restart.mode === "play" && out.restart.boss,
   jumpsToBackyard: out.backyard.level === 0 && out.backyard.world === "BACKYARD" && !out.backyard.ray,
   hidesAndReopens: !out.closed.panel && out.closed.openBtn && out.reopened.panel,
   backquoteToggles: !out.keyHidden.panel && out.keyShown.panel,
   prodHidden: !out.prod.panel && !out.prod.openBtn,
-  mobileWorks: out.mobileMotor.level === 3 && out.mobileMotor.world === "THE MOTOR"
-    && out.mobileBoss.level === 4 && out.mobileBoss.boss,
+  mobileWorks: out.mobileMotor.level === midx["2-4"] && out.mobileMotor.world === "THE MOTOR"
+    && out.mobileBoss.level === midx["2-5"] && out.mobileBoss.boss,
   beatSwallowWorks: out.beatSwallow.vac && out.beatSwallow.ahead > 100 && out.beatSwallow.ahead < 260,
   beatBlastWorks: out.beatBlast.motor && out.beatBlast.fired && out.beatBlast.world === "THE MOTOR",
   noErrors: errors.length === 0,

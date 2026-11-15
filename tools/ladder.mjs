@@ -57,47 +57,50 @@ const pounce = async () => {
   }));
 };
 
-if (rooms.length) {
-  const i = rooms[0].i;
-  out.room = rooms[0];
+const roomAt = (w) => rooms.find((r) => r.world === w);
+const main = roomAt("2-2") || rooms[0];          // crawl + dust wall
+const grateRoom = roomAt("2-1A") || main;        // grate
 
-  // the room must actually contain both kinds of obstacle
+if (rooms.length) {
+  out.roomsTested = [main.world, grateRoom.world].filter((v, i, a) => a.indexOf(v) === i);
+
+  // THE CLIMB must actually contain both kinds of obstacle
   out.shape = await page.evaluate((i) => {
     const L = window.__GAME.LEVELS[i];
     return {
       barriers: L.solids.filter((s) => s.brk).length,
       tall: L.solids.filter((s) => !s.brk && s.y < 380 && s.h > 60).length,
     };
-  }, i);
+  }, main.i);
 
   // 1. the crawl stops a normal cat
-  await place(i, "normal", 955);
+  await place(main.i, "normal", 955);
   out.crawlNormal = await walk(1400);
 
   // 2. it admits the half cat
-  await place(i, "small", 955);
+  await place(main.i, "small", 955);
   out.crawlSmall = await walk(1400);
 
   // 2b. a grate: normal walks over it, the half cat drops through
   const grate = async (size) => {
-    await place(i, size, 250);
-    const x = await walk(900);
+    await place(grateRoom.i, size, 250);
+    await walk(900);
     await page.waitForTimeout(300);
-    return page.evaluate((x) => ({
+    return page.evaluate(() => ({
       x: Math.round(window.__GAME.player.x),
       y: Math.round(window.__GAME.player.y),
       lives: window.__GAME.state.lives,
-    }), x);
+    }));
   };
   out.grateNormal = await grate("normal");
   out.grateSmall = await grate("small");
 
   // 3. the dust wall stops a normal pounce
-  await place(i, "normal", 3080);
+  await place(main.i, "normal", 3080);
   out.dustNormal = await pounce();
 
   // 4. and breaks for a double one, opening the way to the goal
-  await place(i, "big", 3080);
+  await place(main.i, "big", 3080);
   await pounce();
   out.dustBig = await walk(1200);
   out.dustBigAfter = await page.evaluate(() => ({
@@ -108,7 +111,7 @@ if (rooms.length) {
 }
 
 out.checks = {
-  hasLadderRoom: rooms.length >= 1,
+  hasLadderRoom: rooms.length >= 2,
   roomHasBothObstacles: out.shape && out.shape.barriers >= 1 && out.shape.tall >= 1,
   crawlBlocksNormal: out.crawlNormal < 1000,
   grateHoldsNormal: out.grateNormal.x > 300 && out.grateNormal.y < 470,

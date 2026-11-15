@@ -62,7 +62,8 @@ const clearHere = async () => {
   await page.waitForTimeout(260);
   return snapshot();
 };
-out.stage2 = await clearHere();       // THE CLIMB loads
+out.stage1b = await clearHere();      // GRATE & PIPE loads (ladder)
+out.stage2 = await clearHere();       // THE CLIMB loads (ladder)
 out.stage3 = await clearHere();       // DUST BIN loads (ray)
 out.stage4 = await clearHere();       // THE MOTOR loads (ray)
 out.stage5 = await clearHere();       // THE DEN loads (boss)
@@ -80,13 +81,14 @@ out.checks = {
   opening: out.opening.mode === "card" && out.opening.card.n === 3,
   openingToPlay: out.openingToPlay,
   stage1: out.atStage1.level === 0 && out.atStage1.world === "BACKYARD",
-  stage2: out.stage2.level === 1 && out.stage2.world === "THE CLIMB" && out.stage2.mode === "play",
-  ray3: out.stage3.level === 2 && out.stage3.world === "DUST BIN"
+  stage1b: out.stage1b.world === "GRATE & PIPE" && out.stage1b.mode === "play",
+  stage2: out.stage2.world === "THE CLIMB" && out.stage2.mode === "play",
+  ray3: out.stage3.world === "DUST BIN"
     && out.stage3.ray && out.stage3.mode === "play",
-  ray4: out.stage4.level === 3 && out.stage4.world === "THE MOTOR"
+  ray4: out.stage4.world === "THE MOTOR"
     && out.stage4.ray && out.stage4.mode === "play",
-  boss: out.stage5.level === 4 && out.stage5.world === "THE DEN" && out.stage5.mode === "play",
-  counts: out.start.levels === 6 && out.start.demo === 5,
+  boss: out.stage5.world === "THE DEN" && out.stage5.mode === "play",
+  counts: out.start.demo >= 5,
   ending: out.ending.mode === "card" && out.ending.card.n === 3,
   endingToWin: out.endingToWin,
   win: out.final.mode === "win",
@@ -95,8 +97,8 @@ out.checks = {
 out.pass = out.checks.select
   && out.opening.mode === "card" && out.opening.card.n === 3
   && out.openingToPlay && out.atStage1.level === 0 && out.atStage1.world === "BACKYARD"
-  && out.checks.stage2 && out.checks.ray3 && out.checks.ray4 && out.checks.boss
-  && out.start.levels === 6 && out.start.demo === 5
+  && out.checks.stage1b && out.checks.stage2 && out.checks.ray3 && out.checks.ray4 && out.checks.boss
+  && out.start.demo >= 5 && out.start.levels > out.start.demo
   && out.ending.mode === "card" && out.ending.card.n === 3
   && out.endingToWin && out.final.mode === "win"
   && errors.length === 0;

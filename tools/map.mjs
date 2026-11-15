@@ -64,7 +64,7 @@ out.drained = await page.evaluate(() => ({ charge: window.__GAME.state.charge })
 out.secret = await page.evaluate(() => {
   const G = window.__GAME;
   G.setMap(false);
-  G.loadLevel(1);                        // THE CLIMB has the crawl secret
+  G.loadLevel(G.LEVELS.findIndex((L) => L.world === "2-2"));   // has the crawl secret
   const q = G.world.secrets[0];
   return { count: G.world.secrets.length, x: q.x, y: q.y, got: q.got };
 });

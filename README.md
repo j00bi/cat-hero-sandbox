@@ -118,7 +118,10 @@ node tools/test.mjs        # 14 gameplay assertions
 node tools/platforms.mjs   # planks travel + carry the cat
 node tools/boss.mjs        # bait, stun, stomp x3, cushion returns
 node tools/reach.mjs       # every platform reachable from spawn
-node tools/playthrough.mjs # autopilot finishes every 2D stage (ray rooms excluded)
+node tools/playthrough.mjs # autopilot finishes every 2D stage (ray + ladder rooms excluded)
+node tools/ladder.mjs      # ladder rooms: crawl admits half, dust wall only a double pounce
+node tools/shift.mjs       # body ladder, meter cost, headroom, respawn
+node tools/map.mjs         # SENSOR overlay
 node tools/ray.mjs         # Dust Bin door + charge, Motor blast, phone JUMP, fps
 node tools/mobile.mjs      # iPhone: tap-to-start, touch pad, hero switch
 node tools/story.mjs       # opening cards -> 5-stage flow -> ending card -> win

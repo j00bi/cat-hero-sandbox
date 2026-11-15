@@ -24,15 +24,20 @@ await page.waitForTimeout(300);
 const results = [];
 const levels = await page.evaluate(() => window.__GAME.LEVELS.map((L, i) => ({
   i, name: L.name, boss: !!L.boss, sandbox: !!L.sandbox, placeholder: !!L.placeholder,
-  ray: !!L.ray, world: L.world })));
+  ray: !!L.ray, ladder: !!L.ladder, world: L.world })));
 const demo = levels.filter((L) => !L.sandbox);
 const rayLevels = demo.filter((L) => L.ray);
+const ladderLevels = demo.filter((L) => L.ladder);
 const structure = {
   demoCount: demo.length,
   rayCount: rayLevels.length,
   rayWorlds: rayLevels.map((L) => L.world),
+  ladderCount: ladderLevels.length,
+  ladderWorlds: ladderLevels.map((L) => L.world),
 };
-const platformLevels = levels.filter((L) => !L.boss && !L.sandbox && !L.placeholder && !L.ray);
+// ladder rooms need the SHIFT body mechanic, which this 2D autopilot does not
+// drive - tools/ladder.mjs proves those instead
+const platformLevels = levels.filter((L) => !L.boss && !L.sandbox && !L.placeholder && !L.ray && !L.ladder);
 for (const { i: lv } of platformLevels) {
   const r = await page.evaluate((level) => new Promise((resolve) => {
     const G = window.__GAME;

@@ -479,11 +479,19 @@ const LEVELS_ALL = [
     power: 0,
     width: 3400,
     spawn: { x: 70, y: 380 },
+    // The ladder room: a 40 px crawl only the half cat clears, then a dust wall
+    // only a double-size pounce breaks. Ladder rooms are excluded from the 2D
+    // autopilot (tools/playthrough.mjs) and proven by tools/ladder.mjs.
+    ladder: true,
     solids: [
       rect(0, 470, 820, 90), rect(940, 470, 880, 90), rect(1920, 470, 700, 90),
       rect(2720, 470, 680, 90),
       rect(300, 380, 150, 24), rect(1180, 380, 160, 24), rect(2180, 380, 150, 24),
       rect(2860, 380, 160, 24),
+      // crawl: 40 px of headroom, half cat only
+      rect(1000, 300, 180, 130),
+      // dust wall: 170 px of packed dust, double-size pounce only
+      Object.assign(rect(3180, 300, 40, 170), { brk: true }),   // gates the goal
     ],
     // Mill lifts: vertical, slow, and generous — stand on one and wait.
     platforms: [
@@ -2368,7 +2376,7 @@ function drawTitle() {
   // title card
   card(180, 84, 600, 336);
   text("CAT HERO", W / 2, 118, 6, C.ink, "center");
-  text("A VERY SMALL ADVENTURE", W / 2, 180, 2, C.goldDeep, "center");
+  text("SHIFT YOUR BODY", W / 2, 180, 2, C.goldDeep, "center");
 
   ctx.fillStyle = C.paperShade;
   ctx.fillRect(240, 202, 480, 2);
@@ -2381,8 +2389,9 @@ function drawTitle() {
   ctx.drawImage(atlasImg, f.x, f.y, f.w, f.h, W / 2 - f.w * 1.1, 402 - f.h * 2.2, f.w * 2.2, f.h * 2.2);
 
   // controls live here, not in the play band
-  card(240, 436, 480, 42, 8);
-  text("ARROWS MOVE   SPACE JUMP   J PAW   HOLD SHIFT = POWER", W / 2, 450, 1, C.ink, "center");
+  card(196, 424, 568, 58, 8);
+  text("ARROWS MOVE   SPACE JUMP   J PAW   TAB = SENSOR", W / 2, 438, 1, C.ink, "center");
+  text("TAP SHIFT = CHANGE BODY      HOLD SHIFT = POWER", W / 2, 458, 1, C.goldDeep, "center");
 }
 
 function drawSelect() {

@@ -499,6 +499,9 @@ const LEVELS_ALL = [
       { x: 1500, y: 300, w: 150, h: 18, axis: "x", range: 130, speed: 0.75, phase: 1.1 },
       { x: 2350, y: 400, w: 120, h: 18, axis: "y", range: 80, speed: 0.95, phase: 2.0 },
     ],
+    // SENSOR secrets: invisible in normal play, drawn on the schematic. This one
+    // sits inside the crawl, so it also needs the half body to reach.
+    secrets: [{ x: 1090, y: 452 }],
     coins: [
       ...arc(320, 404, 5), ...line(330, 306, 3), ...line(700, 290, 4),
       ...arc(1080, 404, 4), ...line(1210, 276, 3), ...line(1520, 256, 4),
@@ -656,6 +659,7 @@ function loadLevel(i, opts = {}) {
   player.anim = "idle"; player.animT = 0; player.frame = 0;
   world.level = L;
   world.coins = L.coins.map((c) => ({ x: c.x, y: c.y, got: false, t: Math.random() * 6 }));
+  world.secrets = (L.secrets || []).map((q) => ({ x: q.x, y: q.y, got: false }));
   world.enemies = L.enemies.map((e) => ({
     x: e.x, y: 0, w: 40, h: 28, min: e.min, max: e.max,
     vx: 70, dir: 1, alive: true, t: Math.random() * 3, squash: 0, frozen: 0,
@@ -696,7 +700,7 @@ function loadLevel(i, opts = {}) {
 }
 
 const world = {
-  level: null, coins: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
+  level: null, coins: [], secrets: [], enemies: [], particles: [], cam: 0, got: 0, total: 0,
   goal: null, time: 0, checkpoint: 0, plats: [], boss: null, goalDef: null, vac: null,
 };
 /* ------------------------------------------------------- sandbox panel */
@@ -1105,6 +1109,15 @@ function update(dt) {
       addCharge(7);
       sfx.coin();
       burst(c.x, c.y, 8, C.goldWarm);
+    }
+  }
+
+  // sensor secrets — you have to know they are there
+  for (const q of world.secrets || []) {
+    if (q.got) continue;
+    if (overlaps(rect(p.x, p.y, p.w, p.h), rect(q.x - 12, q.y - 12, 24, 24))) {
+      q.got = true; state.fish++; addCharge(30);
+      sfx.coin(); burst(q.x, q.y, 14, C.gold);
     }
   }
 
@@ -2193,6 +2206,17 @@ function drawMap() {
     if (c.got) continue;
     ctx.fillStyle = "rgba(226,182,75,0.9)";
     ctx.fillRect(X(c.x) - 1, Y(c.y) - 1, 3, 3);
+  }
+
+  // secrets only exist here
+  for (const q of world.secrets || []) {
+    if (q.got) continue;
+    ctx.fillStyle = "#E2B64B";
+    ctx.beginPath();
+    ctx.moveTo(X(q.x), Y(q.y) - 6); ctx.lineTo(X(q.x) + 6, Y(q.y));
+    ctx.lineTo(X(q.x), Y(q.y) + 6); ctx.lineTo(X(q.x) - 6, Y(q.y));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 1; ctx.stroke();
   }
 
   // enemy blips + the ground they walk

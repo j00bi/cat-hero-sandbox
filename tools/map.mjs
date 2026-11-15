@@ -60,6 +60,28 @@ out.drain = await page.evaluate(() => ({ charge: window.__GAME.state.charge }));
 await page.waitForTimeout(600);
 out.drained = await page.evaluate(() => ({ charge: window.__GAME.state.charge }));
 
+// 2c. a secret exists only on the schematic, and the half cat can reach it
+out.secret = await page.evaluate(() => {
+  const G = window.__GAME;
+  G.setMap(false);
+  G.loadLevel(1);                        // THE CLIMB has the crawl secret
+  const q = G.world.secrets[0];
+  return { count: G.world.secrets.length, x: q.x, y: q.y, got: q.got };
+});
+out.secretReach = await page.evaluate(() => {
+  const G = window.__GAME;
+  G.state.charge = 100; G.setSize("small");
+  const q = G.world.secrets[0];
+  const pl = G.player;
+  pl.x = q.x; pl.y = q.y; pl.vx = 0; pl.vy = 0;
+  return { before: G.state.fish };
+});
+await page.waitForTimeout(250);
+out.secretAfter = await page.evaluate(() => ({
+  fish: window.__GAME.state.fish,
+  got: window.__GAME.world.secrets[0].got,
+}));
+
 // 3. releases cleanly
 await page.keyboard.up("Tab");
 await page.waitForTimeout(300);
@@ -86,6 +108,8 @@ out.checks = {
   movementResumes: out.resumed - out.frozen.x1 > 60,
   staysOutOfRayRooms: out.rayRefused.on === false && out.rayRefused.ray === true,
   peekingCostsMeter: out.drained.charge < out.drain.charge,
+  hasSecret: out.secret.count >= 1,
+  secretCollectable: out.secretAfter.got === true && out.secretAfter.fish > out.secretReach.before,
   noErrors: errors.length === 0,
 };
 out.pass = Object.values(out.checks).every(Boolean);

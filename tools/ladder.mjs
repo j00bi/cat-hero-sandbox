@@ -78,6 +78,20 @@ if (rooms.length) {
   await place(i, "small", 955);
   out.crawlSmall = await walk(1400);
 
+  // 2b. a grate: normal walks over it, the half cat drops through
+  const grate = async (size) => {
+    await place(i, size, 250);
+    const x = await walk(900);
+    await page.waitForTimeout(300);
+    return page.evaluate((x) => ({
+      x: Math.round(window.__GAME.player.x),
+      y: Math.round(window.__GAME.player.y),
+      lives: window.__GAME.state.lives,
+    }), x);
+  };
+  out.grateNormal = await grate("normal");
+  out.grateSmall = await grate("small");
+
   // 3. the dust wall stops a normal pounce
   await place(i, "normal", 3080);
   out.dustNormal = await pounce();
@@ -97,6 +111,8 @@ out.checks = {
   hasLadderRoom: rooms.length >= 1,
   roomHasBothObstacles: out.shape && out.shape.barriers >= 1 && out.shape.tall >= 1,
   crawlBlocksNormal: out.crawlNormal < 1000,
+  grateHoldsNormal: out.grateNormal.x > 300 && out.grateNormal.y < 470,
+  grateDropsHalf: out.grateSmall.y > 470 || out.grateSmall.lives < 3,
   crawlAdmitsSmall: out.crawlSmall > 1180,
   dustBlocksNormal: out.dustNormal && out.dustNormal.broken === 0 && out.dustNormal.x < 3180,
   dustBreaksBig: out.dustBigAfter.broken === 1 &&

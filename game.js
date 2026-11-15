@@ -484,7 +484,10 @@ const LEVELS_ALL = [
     // autopilot (tools/playthrough.mjs) and proven by tools/ladder.mjs.
     ladder: true,
     solids: [
-      rect(0, 470, 820, 90), rect(940, 470, 880, 90), rect(1920, 470, 700, 90),
+      rect(0, 470, 300, 90), rect(430, 470, 390, 90), rect(940, 470, 880, 90),
+      rect(1920, 470, 700, 90),
+      // a grate: normal and double walk over it, the half cat drops straight in
+      Object.assign(rect(300, 470, 130, 16), { grate: true }),
       rect(2720, 470, 680, 90),
       rect(300, 380, 150, 24), rect(1180, 380, 160, 24), rect(2180, 380, 150, 24),
       rect(2860, 380, 160, 24),
@@ -818,7 +821,11 @@ function overlaps(a, b) {
 }
 
 function solidHit(box) {
-  for (const s of world.level.solids) if (!s.broken && overlaps(box, s)) return s;
+  for (const s of world.level.solids) {
+    if (s.broken) continue;
+    if (s.grate && player.size === "small") continue;   // half falls through a grate
+    if (overlaps(box, s)) return s;
+  }
   for (const q of world.plats) if (overlaps(box, q)) return q;
   return null;
 }
@@ -1632,6 +1639,15 @@ function drawSolids() {
     if (s.broken) continue;
     if (s.x + s.w < cam - 40 || s.x > cam + W + 40) continue;
     const x = Math.round(s.x - cam), y = Math.round(s.y);
+    if (s.grate) {                     // cellar grate: slatted, see-through
+      ctx.fillStyle = C.rail;
+      ctx.fillRect(x, y, s.w, s.h);
+      ctx.fillStyle = C.ink;
+      ctx.fillRect(x, y, s.w, 2);
+      ctx.fillRect(x, y + s.h - 2, s.w, 2);
+      for (let px = 4; px < s.w; px += 10) ctx.fillRect(x + px, y + 2, 4, s.h - 4);
+      continue;
+    }
     if (s.brk) {                       // dust barrier: reads as loose, not solid
       ctx.fillStyle = C.mist;
       ctx.fillRect(x, y, s.w, s.h);

@@ -89,13 +89,19 @@ Rules that make your work landable:
 2. Change only files that exist in the zip. Do not restructure the project,
    do not add dependencies, do not reformat untouched files.
 3. Test by loading the page; note what you verified.
-4. Deliver a UNIFIED DIFF against the pristine copy you were given:
-       git init -q && git add -A && git commit -qm base
-       <make your edits>
-       git diff > cat-hero.patch
-   Also acceptable: the full contents of each file you changed.
-5. In your reply include: the .patch (or the changed files), a PR title,
-   a short PR description, and your testing notes.
+4. Deliver, in order of preference:
+     a) a unified diff against the untouched copy:
+          git init -q && git add -A && git commit -qm base
+          <make your edits>
+          git diff > cat-hero.patch
+     b) a zip of the whole tree (keep MANIFEST.json at its root, then unchanged
+        files are ignored automatically), or
+     c) the full contents of each file you changed.
+5. In your reply include: your delivery, a PR title, a short PR description,
+   and precisely what you tested (what you ran, what you saw).
+
+Constrain yourself to this repository's existing style. Do not add build steps,
+frameworks, or dependencies: it must keep running as plain static files.
 ---8<--- to here ---
 EOF
 

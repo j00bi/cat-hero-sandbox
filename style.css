@@ -55,3 +55,5 @@ body.ray #touch button[data-k="bat"]::after{content:"\25BC"}
   #sandbox{top:8px;right:8px;width:206px}
   #sb-open{top:8px;right:8px}
 }
+
+/* agent probe: only this file should change */

@@ -41,7 +41,7 @@ start_tunnel() {
   echo $! > cf.pid
   local url=""
   for _ in $(seq 1 40); do
-    url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
+    url="$(grep -aoE 'https://[a-z0-9-]+\.trycloudflare\.com' cf.log | head -1 || true)"
     [ -n "$url" ] && break
     sleep 1
   done

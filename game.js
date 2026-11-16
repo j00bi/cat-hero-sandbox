@@ -688,7 +688,7 @@ const player = {
   x: 0, y: 0, w: 34, h: 42, vx: 0, vy: 0, facing: 1,
   onGround: false, coyote: 0, buf: 0, anim: "idle", animT: 0, frame: 0,
   attack: 0, cooldown: 0, invuln: 0, dead: false, spawnX: 0, spawnY: 0, ride: null, wake: 0, power: 0, powerHits: 0, chargeT: 0, charging: false, react: 0,
-  size: "normal", sc: 1, shiftT: 0,
+  size: "normal", sc: 1, shiftT: 0, ghostT: 0, ghostBad: false,
 };
 
 function loadLevel(i, opts = {}) {
@@ -925,6 +925,23 @@ function shiftSize(dir) {
   return setSize(next);
 }
 
+const SIZE_ORDER = ["small", "normal", "big"];
+
+function nextSize() {
+  const i = SIZE_ORDER.indexOf(player.size);
+  return SIZE_ORDER[(i + 1) % SIZE_ORDER.length];
+}
+
+/* Would growing into `name` fit here? Shrinking always does, so it only ever
+   fails upward. Used by the ghost box so a fizzle is visible before you pay. */
+function growFits(name) {
+  const spec = SZ[name] || SZ[player.size];
+  if (spec.s <= SZ[player.size].s) return true;
+  const w = Math.round(34 * spec.s), h = Math.round(42 * spec.s);
+  const nx = player.x + (player.w - w) / 2, ny = player.y + player.h - h;
+  return !solidHit(rect(nx, ny, w, h));
+}
+
 function setSize(name) {
   const p = player, spec = SZ[name];
   if (!spec || p.size === name || p.dead) return false;
@@ -935,6 +952,7 @@ function setSize(name) {
   if (spec.s > 1 && solidHit(rect(nx, ny, w, h))) {
     beep(140, 0.07, "square", 0.05, 90);
     dust(p.x + p.w / 2, p.y + p.h, 3);
+    p.ghostT = 0.55; p.ghostBad = true;      // flash the box so the refusal is legible
     return false;
   }
   state.charge -= SHIFT_COST;
@@ -1042,6 +1060,7 @@ function update(dt) {
   // size: ease the art toward the body, count down the committed shift
   p.sc += (SZ[p.size].s - p.sc) * Math.min(1, dt * 16);
   p.shiftT = Math.max(0, p.shiftT - dt);
+  p.ghostT = Math.max(0, p.ghostT - dt);
 
   // jump
   p.coyote = p.onGround ? COYOTE : Math.max(0, p.coyote - dt);
@@ -2063,6 +2082,37 @@ function drawVacuumFront() {                   // the swallow beat, over decor +
   drawVacuum();
 }
 
+/* The clearance ghost: while you hold SHIFT it shows the box the next body
+   would occupy, green if it fits, red if it would fizzle. Also flashes for a
+   beat after a real fizzle, so the refusal has a reason on screen. */
+function drawGhost() {
+  const p = player;
+  const want = nextSize();
+  const spec = SZ[want];
+  const bigger = spec && spec.s > SZ[p.size].s;
+  const showing = p.ghostT > 0 || (p.charging && bigger);
+  if (!showing || !bigger) return;
+
+  const ok = p.ghostT > 0 ? !p.ghostBad : growFits(want);
+  const w = Math.round(34 * spec.s), h = Math.round(42 * spec.s);
+  const gx = Math.round(p.x + (p.w - w) / 2 - world.cam);
+  const gy = Math.round(p.y + p.h - h);
+
+  ctx.save();
+  ctx.globalAlpha = p.ghostT > 0 ? Math.min(1, p.ghostT * 3) : 0.55;
+  ctx.strokeStyle = ok ? "#8CFFC1" : "#CF573C";
+  ctx.lineWidth = 1;
+  ctx.setLineDash(ok ? [3, 3] : [2, 2]);
+  ctx.strokeRect(gx + 0.5, gy + 0.5, w - 1, h - 1);
+  ctx.setLineDash([]);
+  if (!ok) {
+    ctx.globalAlpha *= 0.22;
+    ctx.fillStyle = "#CF573C";
+    ctx.fillRect(gx, gy, w, h);
+  }
+  ctx.restore();
+}
+
 function drawPlayer() {
   const p = player;
   if (p.invuln > 0 && Math.floor(p.invuln * 20) % 2 === 0) return;
@@ -2654,6 +2704,7 @@ function render() {
   drawBackArcs();
   drawOrbitSparks(false);
   drawPlayer();
+  drawGhost();
   drawOrbitSparks(true);
   drawFrontArcs();
   drawPowerFx();
@@ -3120,7 +3171,7 @@ function boot() {
   initSandboxUI();
   window.__GAME = { state, player, world, LEVELS, LEVELS_EXTRA, DEMO_COUNT, keys, queued, loadLevel,
                     showCard, OPENING, ENDING, RAY, releaseCharge, jumpToStage, restartStage, gotoBeat,
-                    shiftSize, setSize, cycleSize, SZ, SHIFT_COST, hurt, setMap, mapView };
+                    shiftSize, setSize, cycleSize, nextSize, growFits, SZ, SHIFT_COST, hurt, setMap, mapView };
   requestAnimationFrame(frame);
 }
 

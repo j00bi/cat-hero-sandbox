@@ -117,6 +117,19 @@ const barrier = async (size) => {
 out.barrierBig = await barrier("big");
 out.barrierNormal = await barrier("normal");
 
+// 8. clearance ghost: green where double fits, red under the crawl
+out.ghost = await page.evaluate(() => {
+  const G = window.__GAME;
+  const i = G.LEVELS.findIndex((L) => L.world === "2-1A");
+  G.loadLevel(i);
+  const pl = G.player;
+  pl.x = 200; pl.y = 470 - pl.h; pl.vx = 0; pl.vy = 0;   // open floor
+  const open = G.growFits("big");
+  pl.x = 760; pl.y = 470 - pl.h;                          // under the 40 px crawl
+  const tight = G.growFits("big");
+  return { open, tight, next: G.nextSize() };
+});
+
 out.checks = {
   threeBodies: out.small.w === 17 && out.small.h === 21
     && out.normal.w === 34 && out.normal.h === 42
@@ -128,6 +141,8 @@ out.checks = {
   tunnelAdmitsSmall: out.tunnel.small > 1100,
   respawnResets: out.respawn.size === "normal" && out.respawn.w === 34 && out.respawn.h === 42,
   tapShiftCycles: out.tap.size === "normal" && out.tapped.size === "big",
+  ghostKnowsOpen: out.ghost.open === true,
+  ghostKnowsTight: out.ghost.tight === false,
   bigBreaksDust: out.barrierBig.broken === 1 && out.barrierBig.x > 1700,
   normalBouncesOffDust: out.barrierNormal.broken === 0 && out.barrierNormal.x < 1620,
   noErrors: errors.length === 0,

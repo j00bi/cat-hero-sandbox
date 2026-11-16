@@ -74,7 +74,11 @@ cp -r "$SITE"/. "$TMP"/ && touch "$TMP/.nojekyll"
 git -C "$TMP" init -q -b gh-pages
 git -C "$TMP" add -A
 git -C "$TMP" -c user.name="publish" -c user.email="publish@localhost" commit -qm "deploy $VER"
-git -C "$TMP" -c credential.helper='!gh auth git-credential' push -qf "https://github.com/${REPO}.git" gh-pages
+# Credentials: use the ambient helper (~/.git-credentials, or GIT_CRED_HELPER to
+# override). This used to hardcode `!gh auth git-credential`, which broke every
+# machine without the GitHub CLI — including this one.
+git -C "$TMP" ${GIT_CRED_HELPER:+-c credential.helper="$GIT_CRED_HELPER"} \
+  push -qf "https://github.com/${REPO}.git" gh-pages
 
 # 7. smoke test the live site (Pages can take ~1 min; non-fatal)
 echo "▸ smoke test $URL"

@@ -3,7 +3,7 @@
 import base64, os, shutil, subprocess, sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.environ.get("GITD_ROOT") or os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.join(ROOT)
 USER, PASS = open(os.path.join(ROOT, "passwd")).read().strip().split(":", 1)
 PORT = int(os.environ.get("GITD_PORT", "8899"))

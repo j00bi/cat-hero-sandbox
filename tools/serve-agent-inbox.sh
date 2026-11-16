@@ -26,7 +26,7 @@ cd "$STATE"
 
 start_gitd() {
   [ -f gitd.pid ] && kill "$(cat gitd.pid)" 2>/dev/null || true
-  GITD_PORT="$PORT" nohup python3 "$ROOT/tools/gitd.py" >> gitd.log 2>&1 &
+  GITD_ROOT="$STATE" GITD_PORT="$PORT" nohup python3 "$ROOT/tools/gitd.py" >> gitd.log 2>&1 &
   echo $! > gitd.pid
   sleep 1
   curl -sS -o /dev/null -m 3 "http://127.0.0.1:$PORT/health.txt" || {

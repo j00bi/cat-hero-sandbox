@@ -76,10 +76,8 @@ git -C "$WT" checkout -q -b "$BRANCH"
 # ---------- apply ----------
 # ---------- overlay helper: a zip / directory of changed files ----------
 overlay_from() {
-  local src="$1" root="$1" d
-  # A returned zip is often wrapped in one folder. Decide structurally: if the
-  # archive has no index.html/game.js at its root but exactly one subdirectory does,
-  # that directory is the project.
+  local src="$1" root="$1" d man="" rc=0
+  # A returned zip is often wrapped in one folder. Decide structurally.
   if [ ! -f "$src/index.html" ] && [ ! -f "$src/game.js" ]; then
     for d in "$src"/*/; do
       [ -d "$d" ] || continue
@@ -90,9 +88,65 @@ overlay_from() {
       fi
     done
   fi
-  if [ -z "$(ls -A "$root")" ]; then echo "✗ archive is empty" >&2; return 1; fi
-  ( cd "$root" && tar -cf - --exclude=.git --exclude=handoff --exclude=node_modules . ) \
-    | ( cd "$WT" && tar -xf - )
+  [ -n "$(ls -A "$root")" ] || { echo "✗ archive is empty" >&2; return 1; }
+
+  for man in "$root/MANIFEST.json" "$src/MANIFEST.json"; do
+    [ -f "$man" ] && break
+    man=""
+  done
+
+  if [ -n "$man" ]; then
+    # Apply ONLY files whose bytes differ from the packed baseline. This is what
+    # stops a stale full tree from silently reverting newer commits.
+    python3 - "$root" "$man" "$WT" <<'PYOV'
+import hashlib, json, os, shutil, sys
+root, man, wt = sys.argv[1:4]
+try:
+    manifest = json.load(open(man))["files"]
+    base = json.load(open(man)).get("base")
+except Exception as e:
+    print(f"  ! unreadable manifest ({e})", file=sys.stderr); sys.exit(4)
+
+changed, new_files, same, deleted = [], [], 0, []
+for dirpath, dirnames, filenames in os.walk(root):
+    dirnames[:] = [d for d in dirnames if d not in (".git", "handoff", "node_modules")]
+    for fn in filenames:
+        full = os.path.join(dirpath, fn)
+        rel = os.path.relpath(full, root)
+        if rel in ("MANIFEST.json", "BASE.json"):
+            continue
+        h = hashlib.sha256(open(full, "rb").read()).hexdigest()
+        old = manifest.get(rel)
+        if old is None:
+            new_files.append(rel); changed.append(rel)
+        elif old != h:
+            changed.append(rel)
+        else:
+            same += 1
+
+for rel in changed:
+    dst = os.path.join(wt, rel)
+    os.makedirs(os.path.dirname(dst) or wt, exist_ok=True)
+    shutil.copy2(os.path.join(root, rel), dst)
+
+print(f"  overlay vs base {base}: {len(changed)} changed"
+      f" ({len(new_files)} new), {same} identical skipped")
+if new_files:
+    print("   new files: " + ", ".join(new_files[:8]) + ("…" if len(new_files) > 8 else ""))
+if not changed:
+    sys.exit(3)
+PYOV
+    rc=$?
+    if [ "$rc" = "3" ]; then echo "✗ nothing changed vs the packed baseline" >&2; return 1; fi
+    if [ "$rc" != "0" ]; then return 1; fi
+  else
+    echo "  ! no MANIFEST.json — copying the whole tree."
+    echo "    Risk: files changed here since packing would be reverted. Prefer a .patch,"
+    echo "    or re-pack so the agent returns a manifest-bearing zip."
+    ( cd "$root" && tar -cf - --exclude=.git --exclude=handoff --exclude=node_modules . ) \
+      | ( cd "$WT" && tar -xf - )
+  fi
+
   git -C "$WT" add -A
 }
 

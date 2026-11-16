@@ -29,7 +29,7 @@ INCLUDE=(
 )
 
 python3 - "$ZIP" "$SHA" "$BASE" "$ROOT" "${INCLUDE[@]}" <<'PY'
-import os, sys, zipfile, stat
+import hashlib, json, os, sys, zipfile
 
 zip_path, sha, base, root = sys.argv[1:5]
 include = sys.argv[5:]
@@ -41,6 +41,7 @@ SKIP_NAMES = {".DS_Store", "contact.png"}
 SKIP_EXT = {".psd", ".aseprite", ".xcf", ".ai", ".zip"}
 
 added = 0
+manifest = {}
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
     for entry in include:
         p = os.path.join(root, entry)
@@ -48,6 +49,7 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
             continue
         if os.path.isfile(p):
             z.write(p, entry); added += 1
+            manifest[entry] = hashlib.sha256(open(p, "rb").read()).hexdigest()
             continue
         for d, dirs, files in os.walk(p):
             rel_d = os.path.relpath(d, root)
@@ -59,7 +61,12 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
                 full = os.path.join(d, f)
                 if not os.path.isfile(full):
                     continue
-                z.write(full, os.path.relpath(full, root)); added += 1
+                rel = os.path.relpath(full, root)
+                z.write(full, rel); added += 1
+                manifest[rel] = hashlib.sha256(open(full, "rb").read()).hexdigest()
+    z.writestr("MANIFEST.json", json.dumps(
+        {"base": sha, "branch": base, "files": manifest}, indent=1, sort_keys=True))
+    z.writestr("BASE.json", json.dumps({"sha": sha, "branch": base}))
 
 print(f"files: {added}")
 PY

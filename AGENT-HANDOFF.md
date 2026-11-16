@@ -26,11 +26,17 @@ force-pushes and never touches your working tree.
 | Landing | `land.sh <patch>` | `land-inbox.sh <branch>` |
 | Exposure | none | one repo, token-gated, ephemeral |
 
-Mode A is the safe default. Mode B is worth it when the agent is comfortable with git
-and you want several rounds of work, because the round-trip is a `git push` instead of
-a file upload.
+Mode A is the safe default, and for **M365 Copilot it is currently the only option**:
+its sandbox returns `Request blocked by sandbox policy` for outbound HTTPS. That was
+tested directly, so the tunnel below is kept only for an agent on a VM or container that
+really does have egress.
 
-### Mode B — the public tunnel
+### Mode B — the public tunnel (⚠ blocked in M365 Copilot)
+
+Verified on 2026-11-16: the M365 Copilot sandbox refuses outbound HTTPS with
+`Request blocked by sandbox policy`, at the proxy — not a DNS or auth failure. Public
+availability of a tunnel hostname says nothing about whether a sandbox will reach it.
+Do not spend effort here for Copilot; use Mode A.
 
 Most sandboxes block arbitrary outbound traffic, so **test reachability before
 building anything else around it**. Ask the agent to run:
@@ -112,7 +118,22 @@ tools/pack-for-agent.sh
 the task. The prompt tells it to work from the pristine copy, avoid restructuring,
 and return a unified diff.
 
-**3 — Land what comes back.** Save the `.patch` into `handoff/`, then:
+**3 — Land what comes back.** Whatever the agent returns goes through `land.sh`. It
+accepts three shapes, and picks the safe interpretation automatically:
+
+| Returned | Handling |
+|---|---|
+| `.patch` / `.diff` | applied with `--3way`, then `patch -p1` fallback |
+| `.zip` / a directory | overlaid, **but only files whose bytes differ** from `MANIFEST.json` in the pack |
+| `.bundle` | fetched and cherry-picked |
+
+The manifest is why a returned full tree cannot revert work: `pack-for-agent.sh` records
+a sha256 for every file, and `land.sh` copies just the changed ones (a 74-file return
+with one edit reports `1 changed, 73 identical skipped`). Without a manifest it falls
+back to a whole-tree copy and warns that newer commits may be reverted — prefer patches
+in that case.
+
+Save it into `handoff/`, then:
 
 ```bash
 tools/land.sh handoff/cat-hero.patch \
@@ -123,7 +144,7 @@ tools/land.sh handoff/cat-hero.patch \
 That is the whole interface. `land.sh` will:
 
 1. fetch `origin`, build a throwaway worktree from `dev` (your checkout is untouched);
-2. apply the patch (`--3way`, then `patch -p1` fallback) and fail loudly if it does not fit;
+2. apply the returned work (patch, or manifest-filtered overlay) and fail loudly if it does not fit;
 3. commit as `copilot-agent`;
 4. push `agent/<slug>-<date>`;
 5. open the PR against `dev` and print its URL.

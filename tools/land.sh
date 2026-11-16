@@ -74,6 +74,28 @@ git worktree add -q --detach "$WT" "origin/$BASE_BRANCH"
 git -C "$WT" checkout -q -b "$BRANCH"
 
 # ---------- apply ----------
+# ---------- overlay helper: a zip / directory of changed files ----------
+overlay_from() {
+  local src="$1" root="$1" d
+  # A returned zip is often wrapped in one folder. Decide structurally: if the
+  # archive has no index.html/game.js at its root but exactly one subdirectory does,
+  # that directory is the project.
+  if [ ! -f "$src/index.html" ] && [ ! -f "$src/game.js" ]; then
+    for d in "$src"/*/; do
+      [ -d "$d" ] || continue
+      if [ -f "${d}index.html" ] || [ -f "${d}game.js" ]; then
+        root="${d%/}"
+        echo "  (unwrapped $(basename "$root")/ from the archive)"
+        break
+      fi
+    done
+  fi
+  if [ -z "$(ls -A "$root")" ]; then echo "✗ archive is empty" >&2; return 1; fi
+  ( cd "$root" && tar -cf - --exclude=.git --exclude=handoff --exclude=node_modules . ) \
+    | ( cd "$WT" && tar -xf - )
+  git -C "$WT" add -A
+}
+
 echo "▸ apply $(basename "$SRC")"
 case "$SRC" in
   *.bundle)
@@ -85,30 +107,49 @@ case "$SRC" in
       echo "✗ cherry-pick conflicted — resolve in: $WT" >&2
       trap - EXIT; exit 1; }
     ;;
+  *.zip|*.ZIP)
+    EX="$(mktemp -d)"
+    python3 - "$SRC" "$EX" <<'PYEX'
+import sys, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(src) as z:
+    for info in z.infolist():
+        name = info.filename
+        if name.startswith("/") or ".." in name.split("/"):
+            continue
+        z.extract(info, dst)
+PYEX
+    overlay_from "$EX" || { trap - EXIT; exit 1; }
+    ;;
   *)
-    if git -C "$WT" apply --3way --whitespace=nowarn "$SRC" 2>/dev/null; then
-      :
-    elif git -C "$WT" apply --3way --whitespace=nowarn --recount "$SRC" 2>/dev/null; then
-      :
-    elif ( cd "$WT" && patch -p1 --forward --batch < "$SRC" >/dev/null 2>&1 ); then
-      :
+    if [ -d "$SRC" ]; then
+      overlay_from "$SRC" || { trap - EXIT; exit 1; }
     else
-      echo "✗ patch does not apply to origin/$BASE_BRANCH." >&2
-      echo "  Nothing was pushed. The agent's patch was probably made against a" >&2
-      echo "  different base — re-pack with tools/pack-for-agent.sh and redo the work." >&2
-      trap - EXIT; exit 1
+      if git -C "$WT" apply --3way --whitespace=nowarn "$SRC" 2>/dev/null; then
+        :
+      elif git -C "$WT" apply --3way --whitespace=nowarn --recount "$SRC" 2>/dev/null; then
+        :
+      elif ( cd "$WT" && patch -p1 --forward --batch < "$SRC" >/dev/null 2>&1 ); then
+        :
+      else
+        echo "✗ patch does not apply to origin/$BASE_BRANCH." >&2
+        echo "  Nothing was pushed. The agent's patch was probably made against a" >&2
+        echo "  different base — re-pack with tools/pack-for-agent.sh and redo the work." >&2
+        trap - EXIT; exit 1
+      fi
+      git -C "$WT" add -A
     fi
-    git -C "$WT" add -A
-    if git -C "$WT" diff --cached --quiet; then
-      echo "✗ patch produced no changes." >&2
-      trap - EXIT; exit 1
-    fi
-    COMMIT_TITLE="${TITLE:-$(printf '%s' "$SLUG" | tr '-' ' ')}"
-    git -C "$WT" -c user.name="$AGENT_NAME" -c user.email="$AGENT_EMAIL" \
-        commit -q --no-gpg-sign -m "$COMMIT_TITLE" \
-        -m "Landed from a sandboxed agent via tools/land.sh."
     ;;
 esac
+
+if git -C "$WT" diff --cached --quiet; then
+  echo "✗ the agent's work produced no changes." >&2
+  trap - EXIT; exit 1
+fi
+COMMIT_TITLE="${TITLE:-$(printf '%s' "$SLUG" | tr '-' ' ')}"
+git -C "$WT" -c user.name="$AGENT_NAME" -c user.email="$AGENT_EMAIL" \
+    commit -q --no-gpg-sign -m "$COMMIT_TITLE" \
+    -m "Landed from a sandboxed agent via tools/land.sh."
 
 echo "▸ changes vs origin/$BASE_BRANCH"
 git -C "$WT" --no-pager diff --stat "origin/$BASE_BRANCH"...HEAD | tail -20

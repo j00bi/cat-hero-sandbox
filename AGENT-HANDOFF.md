@@ -16,6 +16,71 @@ This kit closes that gap. Your machine stays the only thing holding credentials.
 Nothing is published or merged without you running `land.sh`, and `land.sh` never
 force-pushes and never touches your working tree.
 
+## Two modes — pick by what the agent can reach
+
+| | **A. Zip handoff** | **B. Public tunnel** |
+|---|---|---|
+| Agent needs | file upload only | outbound HTTPS to a random host |
+| Agent can | read, edit, return a patch | clone, commit, push, run its own git |
+| Your machine runs | nothing | `tools/gitd.py` + `cloudflared` |
+| Landing | `land.sh <patch>` | `land-inbox.sh <branch>` |
+| Exposure | none | one repo, token-gated, ephemeral |
+
+Mode A is the safe default. Mode B is worth it when the agent is comfortable with git
+and you want several rounds of work, because the round-trip is a `git push` instead of
+a file upload.
+
+### Mode B — the public tunnel
+
+Most sandboxes block arbitrary outbound traffic, so **test reachability before
+building anything else around it**. Ask the agent to run:
+
+```bash
+curl -s https://<random>.trycloudflare.com/health.txt
+```
+
+It should print `CAT HERO agent git endpoint: OK`. If that hangs or fails, the sandbox
+has no general egress and you are in Mode A — no workaround at the tunnel level fixes
+that.
+
+Start it:
+
+```bash
+tools/serve-agent-inbox.sh          # builds inbox, starts server + tunnel, prints URL
+tools/serve-agent-inbox.sh status
+tools/serve-agent-inbox.sh stop     # revokes access instantly
+```
+
+The agent gets a clone URL like:
+
+```bash
+git clone https://copilot:<token>@<random>.trycloudflare.com/cat-hero.git
+git checkout -b agent/wall-jump
+# ...work, commit...
+git push -u origin agent/wall-jump
+```
+
+Then you land it:
+
+```bash
+tools/land-inbox.sh agent/wall-jump --title "feat: wall jump on dust walls"
+```
+
+How it stays contained:
+
+- The inbox is a **separate bare repo** — the agent never touches your working tree,
+  your GitHub token, or `origin`. History is rewritten source-only (~4 MB: no `dist/`,
+  `shots/`, `out/`, PSDs), so clones are fast on a phone-grade link.
+- Pushes require HTTP basic auth with a random token. `gitd.py` speaks only the git
+  smart-HTTP protocol for that one repo; there is no shell, no file listing beyond it,
+  and no `..` path traversal.
+- The tunnel is ephemeral: `stop` kills it, and a fresh run mints a new URL and token.
+  Quick tunnels are public hostnames — treat the URL+token as a password and keep it
+  out of public channels.
+- Nothing reaches GitHub until you run `land-inbox.sh`, which diffs the branch against
+  its merge-base and hands the patch to `land.sh` (so the PR still comes from a
+  throwaway worktree, never your checkout).
+
 ## One-time setup
 
 ```bash

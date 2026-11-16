@@ -110,6 +110,31 @@ if (rooms.length) {
   }));
 }
 
+/* COUNTER CLIMB: two 96 px steps. Normal's 108 apex climbs, double's 82 cannot. */
+const climbRoom = rooms.find((r) => r.world === "2-2A");
+if (climbRoom) {
+  out.climbShape = await page.evaluate((i) => {
+    const L = window.__GAME.LEVELS[i];
+    const steps = L.solids.filter((q) => !q.brk && q.h <= 30).map((q) => 470 - q.y).sort((a, b) => a - b);
+    return { steps, barriers: L.solids.filter((q) => q.brk).length };
+  }, climbRoom.i);
+
+  // The steps only work if the geometry sits between the two bodies' apexes.
+  // Measure both from the engine's own constants instead of driving a jump.
+  out.climbPhysics = await page.evaluate((i) => {
+    const G = window.__GAME;
+    const g = 2200;
+    const apex = (v) => (v * v) / (2 * g);
+    const steps = G.LEVELS[i].solids
+      .filter((q) => !q.brk && q.h <= 30).map((q) => 470 - q.y).sort((a, b) => a - b);
+    return {
+      steps,
+      normal: Math.round(apex(G.SZ.normal.jump)),
+      big: Math.round(apex(G.SZ.big.jump)),
+    };
+  }, climbRoom.i);
+}
+
 out.checks = {
   hasLadderRoom: rooms.length >= 2,
   roomHasBothObstacles: out.shape && out.shape.barriers >= 1 && out.shape.tall >= 1,
@@ -118,6 +143,10 @@ out.checks = {
   grateDropsHalf: out.grateSmall.y > 470 || out.grateSmall.lives < 3,
   crawlAdmitsSmall: out.crawlSmall > 1180,
   dustBlocksNormal: out.dustNormal && out.dustNormal.broken === 0 && out.dustNormal.x < 3180,
+  counterRoomHasTwoSteps: out.climbShape && out.climbShape.steps.join() === "96,192"
+    && out.climbShape.barriers === 1,
+  normalMountsStep: out.climbPhysics && out.climbPhysics.normal > out.climbPhysics.steps[0],
+  doubleCannotMountStep: out.climbPhysics && out.climbPhysics.big < out.climbPhysics.steps[0],
   dustBreaksBig: out.dustBigAfter.broken === 1 &&
     (out.dustBigAfter.x > 3240 || out.dustBigAfter.mode === "clear"),
   noErrors: errors.length === 0,

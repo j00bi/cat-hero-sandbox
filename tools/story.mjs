@@ -64,6 +64,7 @@ const clearHere = async () => {
 };
 out.stage1b = await clearHere();      // GRATE & PIPE loads (ladder)
 out.stage2 = await clearHere();       // THE CLIMB loads (ladder)
+out.stage2b = await clearHere();      // COUNTER CLIMB loads (ladder)
 out.stage3 = await clearHere();       // DUST BIN loads (ray)
 out.stage4 = await clearHere();       // THE MOTOR loads (ray)
 out.stage5 = await clearHere();       // THE DEN loads (boss)
@@ -83,6 +84,7 @@ out.checks = {
   stage1: out.atStage1.level === 0 && out.atStage1.world === "BACKYARD",
   stage1b: out.stage1b.world === "GRATE & PIPE" && out.stage1b.mode === "play",
   stage2: out.stage2.world === "THE CLIMB" && out.stage2.mode === "play",
+  stage2b: out.stage2b.world === "COUNTER CLIMB" && out.stage2b.mode === "play",
   ray3: out.stage3.world === "DUST BIN"
     && out.stage3.ray && out.stage3.mode === "play",
   ray4: out.stage4.world === "THE MOTOR"
@@ -97,7 +99,7 @@ out.checks = {
 out.pass = out.checks.select
   && out.opening.mode === "card" && out.opening.card.n === 3
   && out.openingToPlay && out.atStage1.level === 0 && out.atStage1.world === "BACKYARD"
-  && out.checks.stage1b && out.checks.stage2 && out.checks.ray3 && out.checks.ray4 && out.checks.boss
+  && out.checks.stage1b && out.checks.stage2 && out.checks.stage2b && out.checks.ray3 && out.checks.ray4 && out.checks.boss
   && out.start.demo >= 5 && out.start.levels > out.start.demo
   && out.ending.mode === "card" && out.ending.card.n === 3
   && out.endingToWin && out.final.mode === "win"

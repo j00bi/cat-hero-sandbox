@@ -584,6 +584,32 @@ const LEVELS_ALL = [
     decor: [],
   },
   {
+    world: "2-2A", name: "COUNTER CLIMB",
+    power: 0,
+    width: 1650,
+    spawn: { x: 80, y: 428 },
+    ladder: true,
+    // Two 96 px counters: normal (108 apex) climbs them, double (82) cannot.
+    // The dust barrier waits on the top deck, so you climb small and break big.
+    solids: [
+      rect(0, 470, 560, 70),                                   // lower floor
+      rect(280, 374, 150, 24),                                 // step 1: 96 px up
+      rect(430, 278, 520, 24),                                 // step 2: 96 px up again
+      Object.assign(rect(760, 108, 40, 170), { brk: true }),   // barrier on the top deck
+      rect(1020, 470, 630, 70),                                // landing floor
+      rect(1140, 300, 160, 130),                               // exit crawl, 40 px headroom
+    ],
+    coins: [
+      { x: 340, y: 342 }, { x: 380, y: 342 },
+      { x: 520, y: 246 }, { x: 560, y: 246 }, { x: 600, y: 246 },
+      { x: 860, y: 246 }, { x: 900, y: 246 },
+    ],
+    secrets: [{ x: 500, y: 438 }],                             // under the top deck, SENSOR only
+    enemies: [{ x: 1380, min: 1330, max: 1460 }],              // after the crawl, not on the drop
+    goal: { x: 1550, y: 470 },
+    decor: [{ t: "sign", x: 60 }],
+  },
+  {
     world: "2-1A", name: "GRATE & PIPE",
     power: 0,
     width: 1450,
@@ -641,6 +667,7 @@ const LEVELS = [
   // lifts, so the route is an actual climb, with one horizontal traverse in
   // the middle to break the rhythm.
   LEVELS_ALL.find((L) => L.world === "2-2"),
+  LEVELS_ALL.find((L) => L.world === "2-2A"),
   {
     world: "2-3", name: "DUST BIN", ray: true, dark: true, theme: "bin",
     hint: "Hold SHIFT to light the way", chargeRate: 95,
@@ -654,7 +681,7 @@ const LEVELS = [
   LEVELS_ALL.find((L) => L.world === "2-5"),
   LEVELS_ALL.find((L) => L.sandbox),
 ];
-const DEMO_COUNT = 6;
+const DEMO_COUNT = 7;
 
 /* ---------------------------------------------------------------- player */
 const player = {

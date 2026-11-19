@@ -1,0 +1,57 @@
+:root{--ink:#1b1410;--paper:#f0e6c8;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#14100d;color:var(--paper);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;background:#f0e6c8;image-rendering:pixelated;image-rendering:crisp-edges;
+  box-shadow:0 0 0 4px #14100d,0 0 0 8px #2b2118,0 22px 60px rgba(0,0,0,.6);border-radius:2px}
+#hint{position:fixed;left:0;right:0;bottom:8px;text-align:center;font-size:12px;letter-spacing:.08em;
+  color:#e8f2e4;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;opacity:.9;transition:opacity .6s}
+body.playing #hint{opacity:0}
+#touch{position:fixed;inset:auto 0 0 0;height:38%;display:none;justify-content:space-between;
+  padding:0 18px 18px;pointer-events:none}
+#touch .pad{display:flex;gap:14px;align-items:flex-end;pointer-events:none}
+#touch button{pointer-events:auto;width:74px;height:74px;border-radius:50%;border:3px solid #f0e6c8;
+  background:rgba(27,20,16,.55);color:#f0e6c8;font:700 13px ui-monospace,monospace;letter-spacing:.06em;
+  backdrop-filter:blur(2px);touch-action:none;-webkit-user-select:none;user-select:none}
+#touch button:active{background:rgba(240,230,200,.9);color:#1b1410;transform:scale(.96)}
+#touch button.bat{width:64px;height:64px;font-size:11px}
+#touch button.chg{width:56px;height:56px;font-size:20px;border-color:#73BED3;color:#A4DDDB}
+/* Ray rooms: JUMP/PAW are forward/back here, so relabel them with glyphs only. */
+body.ray #touch button[data-k="jump"],
+body.ray #touch button[data-k="bat"]{font-size:0;letter-spacing:0}
+body.ray #touch button[data-k="jump"]::after,
+body.ray #touch button[data-k="bat"]::after{display:block;font:700 22px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:0}
+body.ray #touch button[data-k="jump"]::after{content:"\25B2"}
+body.ray #touch button[data-k="bat"]::after{content:"\25BC"}
+@media (pointer:coarse){#touch{display:flex} #hint{display:none}}
+
+/* Sandbox stage-skip panel (only built/visible with ?dev=1). */
+#sandbox{position:fixed;top:14px;right:14px;z-index:30;width:232px;padding:10px;
+  background:rgba(16,20,31,.94);border:2px solid #73BED3;border-radius:8px;
+  color:#E7D5B3;font:12px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  box-shadow:0 10px 30px rgba(0,0,0,.55)}
+#sandbox[hidden]{display:none}
+#sandbox .sb-head{display:flex;justify-content:space-between;align-items:center;
+  color:#73BED3;font-weight:700;letter-spacing:.14em;margin-bottom:4px}
+#sandbox .sb-head button{width:22px;height:22px;padding:0;font-size:16px;line-height:1}
+#sandbox #sb-now{color:#A4DDDB;font-size:11px;letter-spacing:.06em;margin-bottom:8px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sandbox .sb-stages{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+#sandbox button{background:rgba(231,213,179,.08);color:#E7D5B3;border:1px solid rgba(231,213,179,.45);
+  border-radius:5px;padding:7px 6px;font:700 11px/1.1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.04em;cursor:pointer;touch-action:manipulation}
+#sandbox button:hover{background:rgba(231,213,179,.18)}
+#sandbox button:active{background:rgba(115,190,211,.35)}
+#sandbox button.active{border-color:#E8C170;color:#E8C170;background:rgba(232,193,112,.14)}
+#sandbox .sb-row{display:flex;gap:6px}
+#sandbox .sb-row button{flex:1}
+#sandbox .sb-note{opacity:.62;font-size:10px;margin-top:7px;line-height:1.35}
+#sb-open{position:fixed;top:14px;right:14px;z-index:30;display:block;
+  background:rgba(16,20,31,.9);color:#73BED3;border:2px solid #73BED3;border-radius:6px;
+  padding:6px 9px;font:700 11px ui-monospace,monospace;letter-spacing:.1em;cursor:pointer}
+#sb-open[hidden]{display:none}
+@media (pointer:coarse){
+  #sandbox{top:8px;right:8px;width:206px}
+  #sb-open{top:8px;right:8px}
+}

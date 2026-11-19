@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CAT HERO — sprite stack viewer</title>
+<style>
+  :root { --ink:#1b1410; --paper:#f0e6c8; --line:#2b2118; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#14100d; color:var(--paper);
+    font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow:hidden; }
+  #app { position:fixed; inset:0; display:flex; }
+  #stage { flex:1; position:relative; cursor:grab; touch-action:none; }
+  #stage.dragging { cursor:grabbing; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; }
+  #side { width:268px; border-left:2px solid var(--line); padding:14px;
+    background:#181310; display:flex; flex-direction:column; gap:14px; overflow:auto; }
+  h1 { font-size:13px; letter-spacing:.14em; margin:0 0 2px; }
+  .sub { color:#9a8f7a; font-size:11px; margin-bottom:6px; }
+  label { display:block; font-size:11px; letter-spacing:.08em; color:#c9bda4; margin-bottom:4px; }
+  input[type=range] { width:100%; accent-color:#86c044; }
+  .row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .val { color:#e8f2e4; }
+  .box { border:1px solid var(--line); background:#1f1913; padding:8px; }
+  canvas.preview { width:100%; height:auto; image-rendering:pixelated; background:#1b3a28; }
+  button { font:inherit; background:#2b2118; color:var(--paper); border:1px solid #4a3b2c;
+    padding:6px 8px; border-radius:3px; cursor:pointer; }
+  button:hover { background:#3a2d21; }
+  #hud { position:absolute; left:12px; bottom:10px; font-size:11px; color:#9a8f7a; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <div id="hud">drag to turn · wheel to zoom · space to auto-spin</div>
+  </div>
+  <div id="side">
+    <div>
+      <h1>SPRITE STACK</h1>
+      <div class="sub">carved from the orthogonal sheet: side ∩ top</div>
+    </div>
+
+    <div class="box">
+      <label>the real sprite</label>
+      <canvas id="flat" class="preview"></canvas>
+    </div>
+
+    <div>
+      <div class="row"><label>turn</label><span class="val" id="turnVal">0°</span></div>
+      <input id="turn" type="range" min="-180" max="180" value="0" step="1">
+    </div>
+    <div>
+      <div class="row"><label>squash (camera tilt)</label><span class="val" id="squashVal">0.75</span></div>
+      <input id="squash" type="range" min="0.35" max="1" value="0.75" step="0.01">
+    </div>
+    <div>
+      <div class="row"><label>slice spacing</label><span class="val" id="spacingVal">1.0</span></div>
+      <input id="spacing" type="range" min="0" max="3" value="1" step="0.25">
+    </div>
+    <div>
+      <div class="row"><label>zoom</label><span class="val" id="zoomVal">6×</span></div>
+      <input id="zoom" type="range" min="2" max="12" value="6" step="1">
+    </div>
+
+    <div class="row">
+      <button id="spin">auto-spin</button>
+      <button id="reset">reset</button>
+    </div>
+    <div class="sub" id="stats">loading…</div>
+  </div>
+</div>
+<script>
+const stage = document.getElementById('stage');
+const view = document.getElementById('view');
+const ctx = view.getContext('2d');
+const flat = document.getElementById('flat');
+const fctx = flat.getContext('2d');
+const el = (id) => document.getElementById(id);
+
+const state = { turn: 0, squash: 0.75, spacing: 1, zoom: 6, spin: false };
+
+let strip = null, meta = null;
+let sprites = null;
+
+function resize() {
+  const dpr = 1;
+  view.width = Math.max(1, Math.floor(stage.clientWidth * dpr));
+  view.height = Math.max(1, Math.floor(stage.clientHeight * dpr));
+}
+window.addEventListener('resize', resize);
+
+function slice(z) {
+  // strip is a vertical column of slices, bottom first
+  return { sx: 0, sy: z * meta.depth, sw: meta.w, sh: meta.depth };
+}
+
+function drawStack(turn, squash, spacing, zoom, cx, cy) {
+  const { w, depth, count } = meta;
+  ctx.imageSmoothingEnabled = false;
+  for (let z = 0; z < count; z++) {
+    // the lift must be in the same units as the slice, or the stack flattens
+    // into a pancake at any zoom above 1x
+    const dz = Math.round(z * spacing * zoom);
+    ctx.save();
+    ctx.translate(cx, cy - dz);
+    ctx.rotate(turn * Math.PI / 180);
+    ctx.scale(1, squash);
+    ctx.drawImage(strip, 0, z * depth, w, depth, -w * zoom / 2, -depth * zoom / 2, w * zoom, depth * zoom);
+    ctx.restore();
+  }
+}
+
+function drawFlat() {
+  if (!sprites) return;
+  const s = sprites.side;
+  flat.width = s.width * 4;
+  flat.height = s.height * 4;
+  fctx.imageSmoothingEnabled = false;
+  fctx.clearRect(0, 0, flat.width, flat.height);
+  fctx.drawImage(s, 0, 0, flat.width, flat.height);
+}
+
+function frame() {
+  if (state.spin) {
+    state.turn = ((state.turn + 0.7 + 180) % 360) - 180;
+    el('turn').value = Math.round(state.turn);
+    el('turnVal').textContent = Math.round(state.turn) + '°';
+  }
+  ctx.clearRect(0, 0, view.width, view.height);
+  // ground shadow
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(view.width / 2, view.height / 2 + meta.depth * state.zoom * 0.55,
+              18 * state.zoom, 4 * state.zoom, 0, 0, Math.PI * 2);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  drawStack(state.turn, state.squash, state.spacing, state.zoom,
+            Math.round(view.width / 2), Math.round(view.height / 2));
+  requestAnimationFrame(frame);
+}
+
+/* drag to turn, wheel to zoom */
+let dragging = false, lastX = 0;
+stage.addEventListener('pointerdown', (e) => {
+  dragging = true; lastX = e.clientX; stage.classList.add('dragging');
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX; lastX = e.clientX;
+  state.turn = Math.max(-180, Math.min(180, state.turn + dx * 0.9));
+  el('turn').value = Math.round(state.turn);
+  el('turnVal').textContent = Math.round(state.turn) + '°';
+});
+stage.addEventListener('pointerup', () => { dragging = false; stage.classList.remove('dragging'); });
+stage.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  state.zoom = Math.max(2, Math.min(12, state.zoom - Math.sign(e.deltaY)));
+  el('zoom').value = state.zoom;
+  el('zoomVal').textContent = state.zoom + '×';
+}, { passive: false });
+
+el('turn').addEventListener('input', (e) => {
+  state.turn = +e.target.value; state.spin = false;
+  el('turnVal').textContent = Math.round(state.turn) + '°';
+});
+el('squash').addEventListener('input', (e) => {
+  state.squash = +e.target.value;
+  el('squashVal').textContent = state.squash.toFixed(2);
+});
+el('spacing').addEventListener('input', (e) => {
+  state.spacing = +e.target.value;
+  el('spacingVal').textContent = state.spacing.toFixed(2);
+});
+el('zoom').addEventListener('input', (e) => {
+  state.zoom = +e.target.value;
+  el('zoomVal').textContent = state.zoom + '×';
+});
+el('spin').addEventListener('click', () => { state.spin = !state.spin; });
+el('reset').addEventListener('click', () => {
+  state.turn = 0; state.spin = false; state.squash = 0.75; state.spacing = 1; state.zoom = 6;
+  el('turn').value = 0; el('squash').value = 0.75; el('spacing').value = 1; el('zoom').value = 6;
+  el('turnVal').textContent = '0°'; el('squashVal').textContent = '0.75';
+  el('spacingVal').textContent = '1.00'; el('zoomVal').textContent = '6×';
+});
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); state.spin = !state.spin; }
+});
+
+async function boot() {
+  meta = await (await fetch('assets/stack/cat-stack.json')).json();
+  strip = new Image();
+  strip.src = 'assets/stack/cat-stack.png';
+  await strip.decode();
+  const side = new Image();
+  side.src = 'assets/stack/cat-side.png';
+  await side.decode().catch(() => {});
+  sprites = { side };
+  drawFlat();
+  el('stats').textContent = `${meta.count} slices · ${meta.w}×${meta.depth} px each · side ${meta.side[0]}×${meta.side[1]}`;
+  resize();
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>
